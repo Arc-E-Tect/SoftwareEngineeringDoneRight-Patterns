@@ -64,7 +64,7 @@ Validation is a safe, idempotent operation with a request body, and the HTTP met
 Each bounded context exposes its validations as part of its own API, under a `validations` collection, with one operation per validation on a literal path.
 All bounded contexts follow the same conventions: a shared result envelope with a three-valued outcome, a strict separation between verdicts and request errors, and the same mechanism for asynchronous execution.
 
-Inside the service, each validation is a use case behind its own `UseCase` interface, with a thin, generated, typed request handler as its driving adapter.
+Inside the service, each validation is a use case behind its own `UseCase` interface, with a thin, generated, typed request handler as its inbound adapter.
 
 === Resource layout
 
@@ -383,7 +383,7 @@ Accepting arbitrary callback URLs from callers opens a server-side request forge
 == Implementation with Spring Boot
 
 The implementation follows Hexagonal Architecture.
-Each validation is a use case behind its own driving port, and the HTTP handler is the driving adapter for that use case and nothing else.
+Each validation is a use case behind its own inbound port, and the HTTP handler is the inbound adapter for that use case and nothing else.
 The business rule is hidden behind the use case interface, so the HTTP layer and the rule can evolve independently.
 
 By convention, use case interfaces are suffixed with `UseCase`, for example `ValidateNameIbanMatchUseCase`.
@@ -417,11 +417,11 @@ A validation therefore cannot be published in the contract without an implementa
 |===
 |Hexagon element |Element |Example
 
-|Driving adapter
+|Inbound adapter
 |One controller per validation, implementing the generated API interface
 |`NameIbanMatchController`
 
-|Driving port
+|Inbound port
 |One use case interface per validation
 |`ValidateNameIbanMatchUseCase`
 
@@ -429,12 +429,12 @@ A validation therefore cannot be published in the contract without an implementa
 |The use case implementation and the business rule
 |`NameIbanMatchValidator`
 
-|Driven port
+|Outbound port
 |Every source the rule needs
 |`AccountHolderRegistry`
 
-|Driven adapter
-|Implementations of the driven ports
+|Outbound adapter
+|Implementations of the outbound ports
 |`PayeeVerificationSchemeClient` for accounts held at other banks, a repository for the bank's own accounts
 
 |Verdict model
@@ -483,7 +483,7 @@ public interface ValidateNameIbanMatchUseCase {
 
 [source,java]
 ----
-// Driving adapter: thin, typed, and specific to one validation.
+// Inbound adapter: thin, typed, and specific to one validation.
 @RestController
 class NameIbanMatchController implements NameIbanMatchApi {
 
@@ -521,7 +521,7 @@ A bounded context that does not offer asynchronous execution calls the use case 
 === Keep the API types out of the port
 
 The use case returns the domain `Verdict<D>`, never the generated `ValidationResult`.
-The mapper in the driving adapter translates the generated request into the domain claim, and the verdict back into the generated result.
+The mapper in the inbound adapter translates the generated request into the domain claim, and the verdict back into the generated result.
 As a result:
 
 * The response format can evolve, for instance by adding a property to the envelope, without any change to the domain.
@@ -530,8 +530,8 @@ As a result:
 
 === Unavailable dependencies are a domain decision
 
-Every source a rule needs is a driven port.
-When a driven adapter cannot answer, it reports that through the port, for example with a result type that can be `unavailable`, and the use case decides what that means.
+Every source a rule needs is an outbound port.
+When an outbound adapter cannot answer, it reports that through the port, for example with a result type that can be `unavailable`, and the use case decides what that means.
 For most validations that is `Outcome.INDETERMINATE` with a finding that explains why.
 
 The `name-iban-match` validation shows why this is a business decision.
@@ -544,16 +544,16 @@ That keeps a business decision out of exception handlers in the adapter layer, a
 === Rules that touch another bounded context
 
 Sometimes a rule needs information from another bounded context.
-The rule still lives in the context that owns it, and the information is obtained through a driven port whose adapter acts as an anti-corruption layer, translating the other context's model into this one.
+The rule still lives in the context that owns it, and the information is obtained through an outbound port whose adapter acts as an anti-corruption layer, translating the other context's model into this one.
 
 Two of the examples work this way.
 
 * The `entry-eligibility` validation belongs to border control, which owns the record of entries and exits and therefore the 180-day rule.
 Whether the traveller holds a valid entry visa is known by the immigration context.
-Border control asks for it through a driven port such as `EntryVisas`, whose adapter translates immigration's visa model into the single question border control cares about.
+Border control asks for it through an outbound port such as `EntryVisas`, whose adapter translates immigration's visa model into the single question border control cares about.
 * The `same-work-purchased` validation belongs to sales, which owns the purchase history.
 Which editions, bindings and prints belong to the same work is known by the catalogue.
-Sales asks for it through a driven port such as `WorkEditions`, so that its own model only knows about works, not about how the catalogue organises them.
+Sales asks for it through an outbound port such as `WorkEditions`, so that its own model only knows about works, not about how the catalogue organises them.
 
 The dependency is then explicit in the code, instead of hidden in a query against another context's database.
 
@@ -564,11 +564,11 @@ Asynchronous execution has an HTTP part and an application part.
 Both are the same for every validation in every bounded context, and neither contains business logic.
 They are therefore provided as a reusable technical component, such as a Spring Boot starter, that each bounded context can include.
 
-* *Driving adapter:* `ValidationExecution` reads the `Prefer` and `Idempotency-Key` headers and chooses between `200` with the result and `202` with a `Location`.
-* *Application layer:* `SubmitValidationJobUseCase` creates the job, runs the supplied validation in the background, and records completion or failure through a `ValidationJobStore` driven port.
+* *Inbound adapter:* `ValidationExecution` reads the `Prefer` and `Idempotency-Key` headers and chooses between `200` with the result and `202` with a `Location`.
+* *Application layer:* `SubmitValidationJobUseCase` creates the job, runs the supplied validation in the background, and records completion or failure through a `ValidationJobStore` outbound port.
 Idempotency of submission is enforced here, so it holds no matter which adapter submits the job.
 * *Job resource:* a `ValidationJobController` serves `GET /{context}/v1/validations/{validation-name}/{validation-id}` for all validations of the bounded context.
-* *Driven port:* `ValidationJobStore`, for which the bounded context supplies or configures the persistence adapter.
+* *Outbound port:* `ValidationJobStore`, for which the bounded context supplies or configures the persistence adapter.
 
 Sharing this component does not reintroduce coupling between bounded contexts.
 It is infrastructure, like a web framework: it knows nothing about any domain, and each bounded context chooses when to upgrade it.
@@ -625,11 +625,11 @@ Within a bounded context, the number of validations is small and the team that w
 
 The structure supports driving each validation test-first:
 
-* Business scenarios for a validation are written as one feature file per use case, and run against the `UseCase` interface with in-memory fakes for the driven ports.
+* Business scenarios for a validation are written as one feature file per use case, and run against the `UseCase` interface with in-memory fakes for the outbound ports.
 Valid, invalid and indeterminate outcomes are all reachable without infrastructure.
 * Mapper tests verify the translation between generated types and the domain.
 * Contract tests verify the controller against the OpenAPI document.
-* Integration tests verify each driven adapter against its real counterpart, separately from the rule.
+* Integration tests verify each outbound adapter against its real counterpart, separately from the rule.
 * If the asynchronous component is used, its own test suite covers the job lifecycle; the bounded context only verifies that its validations are wired into it.
 
 [[enforcing-the-structure]]
@@ -678,7 +678,7 @@ static final ArchRule validation_slices_are_independent =
 ----
 
 The controller rule stops handlers from slowly accumulating logic.
-The suffix rule keeps every driving port recognisable as a use case.
+The suffix rule keeps every inbound port recognisable as a use case.
 The dependency rules keep the domain free of transport and infrastructure concerns.
 The slice rule guarantees that adding or removing a validation cannot affect another one.
 
@@ -706,7 +706,7 @@ They never call the new path, and no response they receive changes shape.
 The build fails until a controller implements it.
 
 |Implementation
-|One new vertical slice: a controller and mapper as driving adapter, a `UseCase` interface as driving port, its implementation, and a driven port and adapter for each source the rule needs.
+|One new vertical slice: a controller and mapper as inbound adapter, a `UseCase` interface as inbound port, its implementation, and an outbound port and adapter for each source the rule needs.
 Other slices and the asynchronous component need no change.
 
 |Tests
@@ -828,13 +828,13 @@ Structurally similar inputs match more than one variant and fail, unless every v
 == Related patterns
 
 Hexagonal Architecture::
-Each validation is a use case behind a driving port; its handler is a driving adapter, and its sources are driven ports.
+Each validation is a use case behind an inbound port; its handler is an inbound adapter, and its sources are outbound ports.
 
 Bounded Context::
 Determines which service owns a validation: the one that owns the concept the rule is about.
 
 Anti-Corruption Layer::
-Used in a driven adapter when a rule needs information from another bounded context.
+Used in an outbound adapter when a rule needs information from another bounded context.
 
 Long-Running Operation::
 The asynchronous mode: `202 Accepted`, a job resource behind `Location`, and polling or notification.
