@@ -72,7 +72,7 @@ Validations live under the API of the bounded context that owns them.
 
 [source,text]
 ----
-POST /payments/v1/validations/account-holder-name-match
+POST /payments/v1/validations/name-iban-match
 POST /identity/v1/validations/same-person
 POST /border-control/v1/validations/entry-eligibility
 POST /sales/v1/validations/same-work-purchased
@@ -130,9 +130,9 @@ components:
       properties:
         rule:
           type: string
-          description: Stable, machine-readable rule code, e.g. ACCOUNT_HOLDER_NAME_MISMATCH.
+          description: Stable, machine-readable rule code, e.g. NAME_IBAN_MISMATCH.
           examples:
-            - ACCOUNT_HOLDER_NAME_MISMATCH
+            - NAME_IBAN_MISMATCH
         severity:
           type: string
           enum:
@@ -173,11 +173,11 @@ This is the operation in the payments API.
 [source,yaml]
 ----
 paths:
-  /payments/v1/validations/account-holder-name-match:
+  /payments/v1/validations/name-iban-match:
     post:
-      operationId: validateAccountHolderNameMatch
+      operationId: validateNameIbanMatch
       tags:
-        - Account Holder Name Match
+        - Name IBAN Match
       summary: Check whether a name matches the name of the holder of an account.
       description: >-
         Safe and idempotent: this operation changes no state.
@@ -192,14 +192,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AccountHolderNameMatchRequest'
+              $ref: '#/components/schemas/NameIbanMatchRequest'
       responses:
         '200':
           description: The validation completed; the outcome is in the body.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AccountHolderNameMatchResult'
+                $ref: '#/components/schemas/NameIbanMatchResult'
         '202':
           $ref: '#/components/responses/ValidationAccepted'
         '400':
@@ -209,7 +209,7 @@ paths:
 
 components:
   schemas:
-    AccountHolderNameMatchRequest:
+    NameIbanMatchRequest:
       type: object
       required:
         - iban
@@ -222,7 +222,7 @@ components:
           type: string
           minLength: 1
 
-    AccountHolderNameMatchResult:
+    NameIbanMatchResult:
       allOf:
         - $ref: '#/components/schemas/ValidationResult'
         - type: object
@@ -230,11 +230,11 @@ components:
             - validation
           properties:
             validation:
-              const: account-holder-name-match
+              const: name-iban-match
             details:
-              $ref: '#/components/schemas/AccountHolderNameMatchDetails'
+              $ref: '#/components/schemas/NameIbanMatchDetails'
 
-    AccountHolderNameMatchDetails:
+    NameIbanMatchDetails:
       type: object
       required:
         - match
@@ -386,7 +386,7 @@ The implementation follows Hexagonal Architecture.
 Each validation is a use case behind its own driving port, and the HTTP handler is the driving adapter for that use case and nothing else.
 The business rule is hidden behind the use case interface, so the HTTP layer and the rule can evolve independently.
 
-By convention, use case interfaces are prefixed with `UseCase`, for example `UseCaseValidateAccountHolderNameMatch`.
+By convention, use case interfaces are prefixed with `UseCase`, for example `UseCaseValidateNameIbanMatch`.
 
 === One handler per validation
 
@@ -398,13 +398,13 @@ Giving each validation its own tag yields one interface, and therefore one contr
 [source,java]
 ----
 // Generated from the OpenAPI document; one interface per validation tag.
-public interface AccountHolderNameMatchApi {
+public interface NameIbanMatchApi {
 
-    @PostMapping("/payments/v1/validations/account-holder-name-match")
-    ResponseEntity<AccountHolderNameMatchResult> validateAccountHolderNameMatch(
+    @PostMapping("/payments/v1/validations/name-iban-match")
+    ResponseEntity<NameIbanMatchResult> validateNameIbanMatch(
             @RequestHeader(value = "Prefer", required = false) String prefer,
             @RequestHeader(value = "Idempotency-Key", required = false) UUID idempotencyKey,
-            @Valid @RequestBody AccountHolderNameMatchRequest request);
+            @Valid @RequestBody NameIbanMatchRequest request);
 }
 ----
 
@@ -419,15 +419,15 @@ A validation therefore cannot be published in the contract without an implementa
 
 |Driving adapter
 |One controller per validation, implementing the generated API interface
-|`AccountHolderNameMatchController`
+|`NameIbanMatchController`
 
 |Driving port
 |One use case interface per validation
-|`UseCaseValidateAccountHolderNameMatch`
+|`UseCaseValidateNameIbanMatch`
 
 |Application / domain
 |The use case implementation and the business rule
-|`AccountHolderNameMatchValidator`
+|`NameIbanMatchValidator`
 
 |Driven port
 |Every source the rule needs
@@ -453,16 +453,16 @@ com.arcetect.payments
 ├── ...                                     # the rest of the payments bounded context
 └── validation
     ├── verdict                             # Verdict, Outcome, Finding, RuleCode, Severity
-    ├── accountholdername
-    │   ├── domain                          # PayeeClaim, AccountHolderNameMatchDetails, rules
+    ├── nameibanmatch
+    │   ├── domain                          # PayeeClaim, NameIbanMatchDetails, rules
     │   ├── application
     │   │   ├── port
-    │   │   │   ├── in                      # UseCaseValidateAccountHolderNameMatch
+    │   │   │   ├── in                      # UseCaseValidateNameIbanMatch
     │   │   │   └── out                     # AccountHolderRegistry
-    │   │   └── AccountHolderNameMatchValidator
+    │   │   └── NameIbanMatchValidator
     │   └── adapter
     │       ├── in
-    │       │   └── web                     # AccountHolderNameMatchController, AccountHolderNameMatchMapper
+    │       │   └── web                     # NameIbanMatchController, NameIbanMatchMapper
     │       └── out
     │           └── scheme                  # PayeeVerificationSchemeClient
     ├── ...                                 # one slice per validation
@@ -476,8 +476,8 @@ Adding a validation adds a slice; existing slices are not touched.
 
 [source,java]
 ----
-public interface UseCaseValidateAccountHolderNameMatch {
-    Verdict<AccountHolderNameMatchDetails> validate(PayeeClaim claim);
+public interface UseCaseValidateNameIbanMatch {
+    Verdict<NameIbanMatchDetails> validate(PayeeClaim claim);
 }
 ----
 
@@ -485,17 +485,17 @@ public interface UseCaseValidateAccountHolderNameMatch {
 ----
 // Driving adapter: thin, typed, and specific to one validation.
 @RestController
-class AccountHolderNameMatchController implements AccountHolderNameMatchApi {
+class NameIbanMatchController implements NameIbanMatchApi {
 
-    private static final String VALIDATION = "account-holder-name-match";
+    private static final String VALIDATION = "name-iban-match";
 
-    private final UseCaseValidateAccountHolderNameMatch useCase;
-    private final AccountHolderNameMatchMapper mapper;
+    private final UseCaseValidateNameIbanMatch useCase;
+    private final NameIbanMatchMapper mapper;
     private final ValidationExecution execution;
 
-    AccountHolderNameMatchController(
-            UseCaseValidateAccountHolderNameMatch useCase,
-            AccountHolderNameMatchMapper mapper,
+    NameIbanMatchController(
+            UseCaseValidateNameIbanMatch useCase,
+            NameIbanMatchMapper mapper,
             ValidationExecution execution) {
         this.useCase = useCase;
         this.mapper = mapper;
@@ -503,8 +503,8 @@ class AccountHolderNameMatchController implements AccountHolderNameMatchApi {
     }
 
     @Override
-    public ResponseEntity<AccountHolderNameMatchResult> validateAccountHolderNameMatch(
-            String prefer, UUID idempotencyKey, AccountHolderNameMatchRequest request) {
+    public ResponseEntity<NameIbanMatchResult> validateNameIbanMatch(
+            String prefer, UUID idempotencyKey, NameIbanMatchRequest request) {
         var claim = mapper.toClaim(request);
         return execution.run(
                 VALIDATION,
@@ -534,7 +534,7 @@ Every source a rule needs is a driven port.
 When a driven adapter cannot answer, it reports that through the port, for example with a result type that can be `unavailable`, and the use case decides what that means.
 For most validations that is `Outcome.INDETERMINATE` with a finding that explains why.
 
-The `account-holder-name-match` validation shows why this is a business decision.
+The `name-iban-match` validation shows why this is a business decision.
 For accounts held at another bank, the name is verified through a payee verification scheme.
 When the other bank does not answer in time, the verdict is `indeterminate`, and the client can let the payer decide whether to continue.
 Answering `invalid` would block a legitimate payment; answering `valid` would remove the protection against misdirected payments that the validation exists for.
