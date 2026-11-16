@@ -43,6 +43,15 @@ Pull requests are squash-merged, so the cycle is visible on the pull-request bra
 
 |2026-11-17
 |The licence stays MIT.
+
+|2026-11-17
+|Every Gradle project has a build workflow, `domain-validation-api-<project>-build.yml`, shaped and hardened like the reference repositories' build workflows: push to any branch except `main` and `maintenance`, filtered by path, building with Java 25.
+
+|2026-11-17
+|Builds calculate the project's next version with semantic-release, using the reference repositories' shared `release/` plugins and reusable workflows and the `SEMANTIC_RELEASE_TOKEN` secret; nothing is tagged, released or published.
+
+|2026-11-17
+|An OWASP dependency-check per project and the weekly NVD scan are added in Phase 5, once the projects have real dependencies; `SECURITY.md` is updated in the same change.
 |===
 
 == Structure and build
@@ -79,6 +88,18 @@ The rules pack in the Library repository follows that repository's `-iff` conven
 
 |2026-11-17
 |Package root `com.arc_e_tect.payments`, group `com.arc-e-tect.patterns`.
+
+|2026-11-17
+|Gradle project names, which are also the artifact names and tag prefixes: `domain-validation-api-reference-implementation` for the service, and `validation-execution` for the starter, which is a reusable component rather than part of one pattern's example.
+
+|2026-11-17
+|The Gradle wrapper pins the distribution's SHA-256 checksum, so a tampered download is refused.
+
+|2026-11-17
+|The `api/` specification library is created in Phase 3, together with its first bundle target.
+
+|2026-11-17
+|Documentation: `patterns/README.adoc` indexes the patterns; each pattern folder has a `README.adoc` that introduces the pattern and links to its document and its reference implementation; every project README links back to the pattern; the root README indexes all projects and carries the disclaimer about the reference implementations.
 |===
 
 == Architecture
