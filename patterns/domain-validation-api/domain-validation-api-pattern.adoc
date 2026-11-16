@@ -1,0 +1,855 @@
+= Domain Validation API: A Design Pattern
+Arc-E-Tect
+:doctype: article
+:toc: left
+:toclevels: 3
+:sectnums:
+:source-highlighter: rouge
+:icons: font
+
+[abstract]
+The Domain Validation API is a design pattern for exposing business-rule validations from the bounded context that owns the rules.
+Each bounded context offers its validations as typed operations in its own API, following one shared set of conventions for the contract, the outcome and asynchronous execution.
+This document describes the pattern: its context, problem and forces, the solution with its contract and mechanics, the implementation in Spring Boot following Hexagonal Architecture, its consequences, its variants, and the alternatives it rejects.
+
+== Name
+
+*Domain Validation API*
+
+Also known as: _validation operations_, _business-rule checks_.
+
+== Context
+
+Clients need to know whether data satisfies business rules before they commit to using it.
+These are not syntactic checks such as matching a string against a regular expression; those belong in the client and in request schema validation.
+They are semantic checks that need knowledge, reference data or reasoning that only the server has.
+Examples:
+
+* The account holder name provided by a payer matches the name associated with the provided IBAN.
+* The person associated with a social security number is the same person as the person associated with a passport number.
+* A person trying to enter the country has a valid entry visa and was in the country less than 180 days ago.
+* A customer already bought the same book, but in a different binding or print.
+
+Such validations are heterogeneous.
+They differ in input, in output detail, in duration, in determinism, and in the bounded context that owns the underlying rule.
+New validations are added over time, and each one needs implementation work.
+
+== Problem
+
+How do you expose business-rule validations so that clients can call them in a uniform way, while every rule stays with the bounded context that owns it, and while adding a validation never breaks an existing client?
+
+== Forces
+
+* *Ownership.*
+A rule about a concept belongs with the concept.
+Account holder names belong to payments; the link between identity documents to identity management; entry visas and stays to border control; purchase history to sales.
+Moving the rules elsewhere makes the owning domains anaemic.
+* *Uniformity.*
+Clients want to handle validation results in the same way, whichever domain produced them.
+* *Precision.*
+Each validation has its own input and its own result details, and clients want exact, typed contracts for them.
+* *Evolution.*
+Validations are added, changed and retired independently, and none of these changes may break clients of other validations.
+* *Duration.*
+Most validations answer in milliseconds; some, such as checks that involve another organisation or that consult a long travel history, take much longer.
+* *Uncertainty.*
+Some validations are judgement calls, such as whether two spellings of a name refer to the same account holder, and some depend on sources that may be unavailable, so not every validation can always answer yes or no.
+* *Team autonomy.*
+The team that owns a rule wants to change, test and release it without coordinating with other teams.
+* *HTTP tooling.*
+Validation is a safe, idempotent operation with a request body, and the HTTP method that expresses that, `QUERY`, is not yet well supported by tooling.
+
+== Solution
+
+Each bounded context exposes its validations as part of its own API, under a `validations` collection, with one operation per validation on a literal path.
+All bounded contexts follow the same conventions: a shared result envelope with a three-valued outcome, a strict separation between verdicts and request errors, and the same mechanism for asynchronous execution.
+
+Inside the service, each validation is a use case behind its own `UseCase` interface, with a thin, generated, typed request handler as its driving adapter.
+
+=== Resource layout
+
+Validations live under the API of the bounded context that owns them.
+
+[source,text]
+----
+POST /payments/v1/validations/account-holder-name-match
+POST /identity/v1/validations/same-person
+POST /border-control/v1/validations/entry-eligibility
+POST /sales/v1/validations/same-work-purchased
+
+GET  /{context}/v1/validations/{validation-name}/{validation-id}   # asynchronous results only
+----
+
+The segment after `/validations/` is a fixed part of the path, not a path parameter.
+That is the central decision of the contract: it binds each path to exactly one request schema and one response schema.
+
+=== Shared envelope
+
+Every result, in every bounded context, has the same outer shape.
+Only the `details` property varies per validation.
+The envelope is published once as a versioned set of schemas that each bounded context references from its own contract.
+
+[source,yaml]
+----
+components:
+  schemas:
+    ValidationResult:
+      type: object
+      required:
+        - validation
+        - outcome
+      properties:
+        validation:
+          type: string
+          description: >-
+            The name of the validation that produced this result.
+            This is an open set: new validations add new values.
+            Each validation's result schema pins its own value with `const`.
+        outcome:
+          $ref: '#/components/schemas/Outcome'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+
+    Outcome:
+      type: string
+      enum:
+        - valid
+        - invalid
+        - indeterminate
+      description: >-
+        `indeterminate` means the validator could not reach a verdict,
+        for example because a dependency was unavailable or the confidence was too low.
+
+    Finding:
+      type: object
+      required:
+        - rule
+        - severity
+      properties:
+        rule:
+          type: string
+          description: Stable, machine-readable rule code, e.g. ACCOUNT_HOLDER_NAME_MISMATCH.
+          examples:
+            - ACCOUNT_HOLDER_NAME_MISMATCH
+        severity:
+          type: string
+          enum:
+            - error
+            - warning
+            - info
+        message:
+          type: string
+          description: Human-readable explanation; not meant for programmatic use.
+        pointer:
+          type: string
+          description: JSON Pointer (RFC 6901) into the submitted input that this finding refers to.
+          examples:
+            - /accountHolderName
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Present only for validations whose verdict is probabilistic.
+----
+
+The three-valued `outcome` is deliberate.
+A boolean would force a validation that cannot conclude to give a wrong answer.
+The enumeration is defined completely from the start, because adding a value to a response enumeration later is a breaking change.
+
+The outcome and the findings are independent.
+A `valid` outcome can carry findings with severity `warning` or `info`.
+The `same-work-purchased` validation is an example: buying a different binding of a book the customer already owns is allowed, so the outcome is `valid`, but a warning finding lets the client ask the customer whether that is really what they want.
+
+The envelope is shared as _schemas_, not as a code library.
+Each service generates its own types from its contract and keeps its own domain model for verdicts, so no bounded context depends on another's release cycle.
+
+=== A validation operation
+
+Each validation defines its own request schema, and a result schema that extends the envelope with its own `details`.
+This is the operation in the payments API.
+
+[source,yaml]
+----
+paths:
+  /payments/v1/validations/account-holder-name-match:
+    post:
+      operationId: validateAccountHolderNameMatch
+      tags:
+        - Account Holder Name Match
+      summary: Check whether a name matches the name of the holder of an account.
+      description: >-
+        Safe and idempotent: this operation changes no state.
+        POST is used only because the operation needs a request body.
+      x-idempotent: true
+      x-validation: true
+      parameters:
+        - $ref: '#/components/parameters/Prefer'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountHolderNameMatchRequest'
+      responses:
+        '200':
+          description: The validation completed; the outcome is in the body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountHolderNameMatchResult'
+        '202':
+          $ref: '#/components/responses/ValidationAccepted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+
+components:
+  schemas:
+    AccountHolderNameMatchRequest:
+      type: object
+      required:
+        - iban
+        - accountHolderName
+      properties:
+        iban:
+          type: string
+          pattern: '^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$'
+        accountHolderName:
+          type: string
+          minLength: 1
+
+    AccountHolderNameMatchResult:
+      allOf:
+        - $ref: '#/components/schemas/ValidationResult'
+        - type: object
+          required:
+            - validation
+          properties:
+            validation:
+              const: account-holder-name-match
+            details:
+              $ref: '#/components/schemas/AccountHolderNameMatchDetails'
+
+    AccountHolderNameMatchDetails:
+      type: object
+      required:
+        - match
+      properties:
+        match:
+          type: string
+          enum:
+            - exact
+            - close
+            - none
+        registeredName:
+          type: string
+          description: >-
+            The name registered for the account.
+            Present only for a close match, so that the payer can correct an obvious typing error.
+----
+
+The shared parts (`ValidationResult`, `Finding`, `Prefer`, `IdempotencyKey`, the error responses) are referenced from the published envelope, not redefined.
+The vendor extension `x-validation: true` marks the operation as a validation, so an API catalogue or developer portal can list all validations across bounded contexts.
+
+=== Binding the validation name
+
+The set of validations a bounded context supports is defined by the list of operations in its contract.
+Because every path is a literal, no enumeration of validation names is needed to constrain the path.
+
+The `validation` property in the result is bound per validation, not centrally:
+
+* In the shared envelope, `validation` is a plain string, documented as an open set.
+* In each validation's result schema, `validation` is pinned with `const` to exactly that validation's name.
+
+This is stricter than an `enum` and stays additive.
+An `enum` only states that the value is one of a list; `const` states that it is exactly one value for that operation.
+
+An `enum` in the envelope would be a breaking change on every new validation.
+Adding a value to a response enumeration breaks clients with generated enum types or exhaustive `switch` statements, including clients that never call the new validation, because they all share the generated envelope type.
+With `const`, a new validation adds a new value in a new schema and existing schemas are unchanged.
+
+The same reasoning applies to the implementation.
+A central Java `enum` of validation names would make every validation depend on one list.
+Each validation declares its own name as a constant instead.
+
+=== Verdicts versus request errors
+
+The pattern separates two different things that are easy to confuse.
+
+[cols="1,1,2",options="header"]
+|===
+|Situation |Status |Body
+
+|The input was checked and satisfies the rules
+|`200 OK`
+|`ValidationResult` with `outcome: valid`
+
+|The input was checked and violates the rules
+|`200 OK`
+|`ValidationResult` with `outcome: invalid` and findings
+
+|The input was checked but no verdict could be reached
+|`200 OK`
+|`ValidationResult` with `outcome: indeterminate`
+
+|The request itself is malformed
+|`400 Bad Request`
+|Problem Details (RFC 9457)
+
+|The request is well-formed but cannot be processed, e.g. an unsupported jurisdiction
+|`422 Unprocessable Content`
+|Problem Details (RFC 9457)
+|===
+
+An invalid input is a successful answer from a validation.
+Status codes in the 4xx range are reserved for problems with the call itself.
+
+== Mechanics
+
+=== Why POST
+
+Validation is semantically a safe, idempotent read: it changes no state.
+The HTTP method that matches those semantics and carries a request body is `QUERY`, but tooling support for it is not mature enough yet.
+`GET` with a body is not supported by the standard or by most tooling.
+`POST` is therefore used, which is common practice for complex searches and computations that need a request body.
+
+A body is also required for a second reason: the input of a validation is often sensitive.
+Social security numbers, passport numbers, IBANs and names of account holders must never appear in a URL, where they end up in access logs, proxy logs, browser history and `Referer` headers.
+For the same reason, the service never logs the request bodies of validation operations, and responses carry `Cache-Control: no-store`.
+
+Using `POST` for a safe operation has side effects that the pattern compensates for explicitly.
+
+Retries::
+Gateways, service meshes and HTTP clients do not retry `POST` automatically, because they assume it is not idempotent.
+Each synchronous validation operation states in its description that it is safe and idempotent, and carries the vendor extension `x-idempotent: true`.
+Gateway and client configuration can use that extension to enable retries for these operations.
+
+Caching::
+HTTP caching of `POST` responses is effectively unsupported by intermediaries.
+Validations that are expensive to compute cache their results in the service, keyed on a hash of the canonicalised input.
+The owning service knows when its reference data changes and therefore when a cached result is stale.
+
+=== Synchronous and asynchronous execution
+
+The same operation serves both modes.
+The client states its preference with the `Prefer` header (RFC 7240); the service may also decide to go asynchronous on its own, for instance for validations that are known to be slow.
+
+[source,text]
+----
+# Synchronous
+POST /identity/v1/validations/same-person
+Content-Type: application/json
+
+{ "socialSecurityNumber": "...", "passport": { "number": "...", "issuingCountry": "NL" } }
+
+200 OK
+{ "validation": "same-person", "outcome": "valid", "findings": [] }
+
+# Asynchronous
+POST /border-control/v1/validations/entry-eligibility
+Prefer: respond-async
+Idempotency-Key: 3f1c9b0e-6a2d-4f7e-9c41-0b8a5e2d7c11
+Content-Type: application/json
+
+202 Accepted
+Location: /border-control/v1/validations/entry-eligibility/8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f
+Retry-After: 2
+
+GET /border-control/v1/validations/entry-eligibility/8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f
+
+200 OK
+{ "status": "completed", "result": { "validation": "entry-eligibility", "outcome": "invalid", ... } }
+----
+
+The two modes differ in what the `POST` does.
+
+* In synchronous mode nothing is created; the `POST` is a pure computation and has no `Location` header.
+* In asynchronous mode the `POST` creates a resource, the validation job.
+That is not idempotent, so the `Idempotency-Key` header is required in this mode.
+Without it, a client that retries after a timeout starts duplicate jobs.
+
+Asynchronous execution is optional per bounded context.
+A context whose validations are all fast does not offer it, and answers synchronously regardless of `Prefer`, which RFC 7240 allows.
+A context that does offer it uses a shared technical component for the job lifecycle, described in <<async-component>>, instead of building its own.
+
+For clients that want to be notified instead of polling, completion is published as a `ValidationCompleted` event and described in the OpenAPI 3.1 top-level `webhooks` section, with subscriptions registered out-of-band.
+The request body deliberately has no callback URL field.
+Accepting arbitrary callback URLs from callers opens a server-side request forgery (SSRF) vector, and it mixes a delivery concern into the payload schema of every validation.
+
+== Implementation with Spring Boot
+
+The implementation follows Hexagonal Architecture.
+Each validation is a use case behind its own driving port, and the HTTP handler is the driving adapter for that use case and nothing else.
+The business rule is hidden behind the use case interface, so the HTTP layer and the rule can evolve independently.
+
+By convention, use case interfaces are prefixed with `UseCase`, for example `UseCaseValidateAccountHolderNameMatch`.
+
+=== One handler per validation
+
+With literal paths per validation, each validation gets its own request handler.
+In a contract-first setup this follows directly from the generator.
+The OpenAPI Generator `spring` generator, configured with `interfaceOnly` and `useTags`, produces one Java interface per tag.
+Giving each validation its own tag yields one interface, and therefore one controller, per validation.
+
+[source,java]
+----
+// Generated from the OpenAPI document; one interface per validation tag.
+public interface AccountHolderNameMatchApi {
+
+    @PostMapping("/payments/v1/validations/account-holder-name-match")
+    ResponseEntity<AccountHolderNameMatchResult> validateAccountHolderNameMatch(
+            @RequestHeader(value = "Prefer", required = false) String prefer,
+            @RequestHeader(value = "Idempotency-Key", required = false) UUID idempotencyKey,
+            @Valid @RequestBody AccountHolderNameMatchRequest request);
+}
+----
+
+A new validation adds a new interface, and the build fails until a controller implements it.
+A validation therefore cannot be published in the contract without an implementation.
+
+=== Mapping onto the hexagon
+
+[cols="1,2,2",options="header"]
+|===
+|Hexagon element |Element |Example
+
+|Driving adapter
+|One controller per validation, implementing the generated API interface
+|`AccountHolderNameMatchController`
+
+|Driving port
+|One use case interface per validation
+|`UseCaseValidateAccountHolderNameMatch`
+
+|Application / domain
+|The use case implementation and the business rule
+|`AccountHolderNameMatchValidator`
+
+|Driven port
+|Every source the rule needs
+|`AccountHolderRegistry`
+
+|Driven adapter
+|Implementations of the driven ports
+|`PayeeVerificationSchemeClient` for accounts held at other banks, a repository for the bank's own accounts
+
+|Verdict model
+|The bounded context's own domain types for outcomes and findings
+|`Verdict<D>`, `Outcome`, `Finding`, `RuleCode`, `Severity`
+|===
+
+=== Package layout
+
+The validations are part of the service of the bounded context, next to the rest of its model.
+In the payments service, that looks like this:
+
+[source,text]
+----
+com.arcetect.payments
+├── ...                                     # the rest of the payments bounded context
+└── validation
+    ├── verdict                             # Verdict, Outcome, Finding, RuleCode, Severity
+    ├── accountholdername
+    │   ├── domain                          # PayeeClaim, AccountHolderNameMatchDetails, rules
+    │   ├── application
+    │   │   ├── port
+    │   │   │   ├── in                      # UseCaseValidateAccountHolderNameMatch
+    │   │   │   └── out                     # AccountHolderRegistry
+    │   │   └── AccountHolderNameMatchValidator
+    │   └── adapter
+    │       ├── in
+    │       │   └── web                     # AccountHolderNameMatchController, AccountHolderNameMatchMapper
+    │       └── out
+    │           └── scheme                  # PayeeVerificationSchemeClient
+    ├── ...                                 # one slice per validation
+    └── api                                 # generated OpenAPI interfaces and models (build output)
+----
+
+Each validation is a vertical slice with its own domain, ports and adapters.
+Adding a validation adds a slice; existing slices are not touched.
+
+=== Controller and use case
+
+[source,java]
+----
+public interface UseCaseValidateAccountHolderNameMatch {
+    Verdict<AccountHolderNameMatchDetails> validate(PayeeClaim claim);
+}
+----
+
+[source,java]
+----
+// Driving adapter: thin, typed, and specific to one validation.
+@RestController
+class AccountHolderNameMatchController implements AccountHolderNameMatchApi {
+
+    private static final String VALIDATION = "account-holder-name-match";
+
+    private final UseCaseValidateAccountHolderNameMatch useCase;
+    private final AccountHolderNameMatchMapper mapper;
+    private final ValidationExecution execution;
+
+    AccountHolderNameMatchController(
+            UseCaseValidateAccountHolderNameMatch useCase,
+            AccountHolderNameMatchMapper mapper,
+            ValidationExecution execution) {
+        this.useCase = useCase;
+        this.mapper = mapper;
+        this.execution = execution;
+    }
+
+    @Override
+    public ResponseEntity<AccountHolderNameMatchResult> validateAccountHolderNameMatch(
+            String prefer, UUID idempotencyKey, AccountHolderNameMatchRequest request) {
+        var claim = mapper.toClaim(request);
+        return execution.run(
+                VALIDATION,
+                prefer,
+                idempotencyKey,
+                () -> mapper.toResult(useCase.validate(claim)));
+    }
+}
+----
+
+The handler only does what is specific to its validation: mapping the typed request to a domain object and the domain verdict back to the typed result.
+A bounded context that does not offer asynchronous execution calls the use case directly and returns `200`.
+
+=== Keep the API types out of the port
+
+The use case returns the domain `Verdict<D>`, never the generated `ValidationResult`.
+The mapper in the driving adapter translates the generated request into the domain claim, and the verdict back into the generated result.
+As a result:
+
+* The response format can evolve, for instance by adding a property to the envelope, without any change to the domain.
+* The domain never depends on generated code, so regenerating the API cannot break the domain.
+* The same use case can be driven by another adapter, such as a message listener or a batch job, without going through HTTP types.
+
+=== Unavailable dependencies are a domain decision
+
+Every source a rule needs is a driven port.
+When a driven adapter cannot answer, it reports that through the port, for example with a result type that can be `unavailable`, and the use case decides what that means.
+For most validations that is `Outcome.INDETERMINATE` with a finding that explains why.
+
+The `account-holder-name-match` validation shows why this is a business decision.
+For accounts held at another bank, the name is verified through a payee verification scheme.
+When the other bank does not answer in time, the verdict is `indeterminate`, and the client can let the payer decide whether to continue.
+Answering `invalid` would block a legitimate payment; answering `valid` would remove the protection against misdirected payments that the validation exists for.
+
+That keeps a business decision out of exception handlers in the adapter layer, and makes it something that is specified and tested.
+
+=== Rules that touch another bounded context
+
+Sometimes a rule needs information from another bounded context.
+The rule still lives in the context that owns it, and the information is obtained through a driven port whose adapter acts as an anti-corruption layer, translating the other context's model into this one.
+
+Two of the examples work this way.
+
+* The `entry-eligibility` validation belongs to border control, which owns the record of entries and exits and therefore the 180-day rule.
+Whether the traveller holds a valid entry visa is known by the immigration context.
+Border control asks for it through a driven port such as `EntryVisas`, whose adapter translates immigration's visa model into the single question border control cares about.
+* The `same-work-purchased` validation belongs to sales, which owns the purchase history.
+Which editions, bindings and prints belong to the same work is known by the catalogue.
+Sales asks for it through a driven port such as `WorkEditions`, so that its own model only knows about works, not about how the catalogue organises them.
+
+The dependency is then explicit in the code, instead of hidden in a query against another context's database.
+
+[[async-component]]
+=== Asynchronous execution as a technical component
+
+Asynchronous execution has an HTTP part and an application part.
+Both are the same for every validation in every bounded context, and neither contains business logic.
+They are therefore provided as a reusable technical component, such as a Spring Boot starter, that each bounded context can include.
+
+* *Driving adapter:* `ValidationExecution` reads the `Prefer` and `Idempotency-Key` headers and chooses between `200` with the result and `202` with a `Location`.
+* *Application layer:* `UseCaseSubmitValidationJob` creates the job, runs the supplied validation in the background, and records completion or failure through a `ValidationJobStore` driven port.
+Idempotency of submission is enforced here, so it holds no matter which adapter submits the job.
+* *Job resource:* a `ValidationJobController` serves `GET /{context}/v1/validations/{validation-name}/{validation-id}` for all validations of the bounded context.
+* *Driven port:* `ValidationJobStore`, for which the bounded context supplies or configures the persistence adapter.
+
+Sharing this component does not reintroduce coupling between bounded contexts.
+It is infrastructure, like a web framework: it knows nothing about any domain, and each bounded context chooses when to upgrade it.
+
+=== Can a single handler serve all validations?
+
+Technically, yes.
+Spring can map one handler to a path pattern and read the validation name from a path variable:
+
+[source,java]
+----
+@RestController
+class GenericValidationController {
+
+    private final ValidatorRegistry registry;
+    private final ObjectMapper objectMapper;
+
+    GenericValidationController(ValidatorRegistry registry, ObjectMapper objectMapper) {
+        this.registry = registry;
+        this.objectMapper = objectMapper;
+    }
+
+    @PostMapping("/payments/v1/validations/{validationName}")
+    ResponseEntity<ValidationResult> validate(
+            @PathVariable String validationName,
+            @RequestBody JsonNode body) throws JsonProcessingException {
+        var validator = registry.find(validationName)
+                .orElseThrow(() -> new UnknownValidationException(validationName));
+        var input = objectMapper.treeToValue(body, validator.inputType());
+        return ResponseEntity.ok(validator.validate(input));
+    }
+}
+----
+
+The value of `validationName` selects the validator from a registry, which is the strategy pattern.
+Doing it this way has costs, though.
+
+* *The contract and the code diverge in shape.*
+The OpenAPI document still lists one literal path per validation, but the code has one generic handler.
+The generated interfaces cannot be implemented, so the generator no longer guarantees that every operation in the contract is implemented.
+That guarantee has to come from contract tests instead.
+* *Typing is lost at the edge.*
+The body arrives as untyped JSON and is bound by hand.
+Bean Validation through `@Valid` no longer applies automatically, and binding errors must be translated to Problem Details by hand.
+* *Code-first documentation breaks.*
+Tools such as springdoc infer a single operation with an untyped body, so a code-first OpenAPI document becomes useless.
+* *Per-validation concerns are harder to attach.*
+Authorisation, rate limits, timeouts, metrics and deprecation headers that differ per validation must be resolved at runtime from the registry instead of being declared on the handler.
+
+Spring matches literal paths before path patterns, so the two styles can coexist during a migration.
+Within a bounded context, the number of validations is small and the team that writes each rule also owns its contract, so one typed handler per validation costs little and keeps the compiler, the generator and the contract aligned.
+
+=== Test-first per validation
+
+The structure supports driving each validation test-first:
+
+* Business scenarios for a validation are written as one feature file per use case, and run against the `UseCase` interface with in-memory fakes for the driven ports.
+Valid, invalid and indeterminate outcomes are all reachable without infrastructure.
+* Mapper tests verify the translation between generated types and the domain.
+* Contract tests verify the controller against the OpenAPI document.
+* Integration tests verify each driven adapter against its real counterpart, separately from the rule.
+* If the asynchronous component is used, its own test suite covers the job lifecycle; the bounded context only verifies that its validations are wired into it.
+
+[[enforcing-the-structure]]
+=== Enforcing the structure
+
+The structure is only valuable if it holds over time.
+These rules are checked with ArchUnit in the build, for example through the `architecture-validator` Gradle plugin.
+
+[source,java]
+----
+@ArchTest
+static final ArchRule controllers_depend_only_on_use_cases_and_mappers =
+        classes().that().resideInAPackage("..validation..adapter.in.web..")
+                .and().areAnnotatedWith(RestController.class)
+                .should().onlyDependOnClassesThat()
+                .resideInAnyPackage(
+                        "..application.port.in..",
+                        "..adapter.in.web..",
+                        "..verdict..",
+                        "..validation.api..",
+                        "com.arcetect.validation.async..",
+                        "java..",
+                        "org.springframework..");
+
+@ArchTest
+static final ArchRule use_cases_are_prefixed =
+        classes().that().resideInAPackage("..application.port.in..")
+                .and().areInterfaces()
+                .should().haveSimpleNameStartingWith("UseCase");
+
+@ArchTest
+static final ArchRule domain_and_application_do_not_depend_on_generated_api =
+        noClasses().that().resideInAnyPackage("..domain..", "..application..", "..verdict..")
+                .should().dependOnClassesThat().resideInAPackage("..validation.api..");
+
+@ArchTest
+static final ArchRule domain_and_application_do_not_depend_on_adapters =
+        noClasses().that().resideInAnyPackage("..domain..", "..application..", "..verdict..")
+                .should().dependOnClassesThat().resideInAPackage("..adapter..");
+
+@ArchTest
+static final ArchRule validation_slices_are_independent =
+        slices().matching("com.arcetect.payments.validation.(*)..")
+                .should().notDependOnEachOther()
+                .ignoreDependency(alwaysTrue(), resideInAnyPackage("..verdict..", "..validation.api.."));
+----
+
+The controller rule stops handlers from slowly accumulating logic.
+The prefix rule keeps every driving port recognisable as a use case.
+The dependency rules keep the domain free of transport and infrastructure concerns.
+The slice rule guarantees that adding or removing a validation cannot affect another one.
+
+== Consequences
+
+=== Adding a validation
+
+Adding a validation is an additive change, made entirely by the team that owns the rule, in its own service.
+It never requires a new major version of the bounded context's API.
+
+[cols="1,3",options="header"]
+|===
+|Area |Consequence
+
+|Contract
+|A new literal path, a new tag, a new request schema, a new result schema extending `ValidationResult` with its own `const` name, and the rule codes.
+Existing paths and schemas are untouched.
+
+|Existing clients
+|Unaffected.
+They never call the new path, and no response they receive changes shape.
+
+|Generated code
+|A new interface is generated for the new tag.
+The build fails until a controller implements it.
+
+|Implementation
+|One new vertical slice: a controller and mapper as driving adapter, a `UseCase` interface as driving port, its implementation, and a driven port and adapter for each source the rule needs.
+Other slices and the asynchronous component need no change.
+
+|Tests
+|A feature file with business scenarios, mapper tests and contract tests for the new operation.
+
+|Discoverability
+|The `x-validation` extension makes the new operation appear in the API catalogue next to validations of other bounded contexts.
+
+|Other teams
+|None involved.
+|===
+
+=== Evolving and retiring a validation
+
+Each validation has its own lifecycle, because each one is a separate operation.
+
+* *Additive changes* to a validation's request, such as a new optional property, or to its `details`, such as a new property that clients can ignore, are made in place.
+* *Breaking changes* to one validation introduce a new operation next to the old one, for example `/sales/v1/validations/same-work-purchased-v2`.
+The rest of the API keeps its version.
+* *Retirement* uses the `Deprecation` and `Sunset` headers on the affected operation only, and marks the operation `deprecated: true` in the contract.
+
+Rule codes in findings are part of the contract.
+New rule codes may be added, so clients must treat unknown codes as opaque, but an existing code is never renamed or reused for a different rule.
+
+=== Changing the shared envelope
+
+The envelope is the one thing all bounded contexts share.
+Additive changes, such as a new optional property, can be adopted by each bounded context at its own pace.
+A breaking change affects every validation in every bounded context and needs a coordinated migration, so the envelope is designed carefully up front and kept minimal.
+
+=== Benefits and liabilities
+
+[cols="1,1",options="header"]
+|===
+|Benefits |Liabilities
+
+|Every rule stays with the bounded context that owns it, and the team that owns the rule owns its contract and its release.
+|There is no single endpoint for all validations; clients find them through the API catalogue and call the bounded context that owns each one.
+
+|Clients handle every validation in the same way, whichever bounded context provides it.
+|Consistency depends on every bounded context following the pattern; it has to be supported by linting rules and reviews.
+
+|Exact request and response types per validation, enforced by the contract and by generated code.
+|More operations, interfaces and controllers than with a single generic endpoint.
+
+|Adding a validation is purely additive and involves only the owning team.
+|Validations cannot be added by configuration alone; each one needs a contract change and a deployment.
+
+|Each validation can be versioned, deprecated and retired on its own.
+|The shared envelope must be designed carefully up front, because a breaking change to it affects every bounded context.
+
+|Asynchronous execution is available without each bounded context building it, through a shared technical component.
+|The asynchronous component is a shared dependency that has to be maintained and versioned.
+
+|Clear separation between a verdict (`200`) and an invalid call (`4xx`), and an honest `indeterminate` outcome.
+|`POST` hides the safe, idempotent semantics from infrastructure; retries and caching must be configured explicitly, and clients must understand `indeterminate`.
+|===
+
+== Variants
+
+=== Generic handler with a validator registry
+
+Within one bounded context, a single handler on `/{context}/v1/validations/{validation-name}` selects a validator from a registry, while the contract still lists one literal path per validation.
+This trades typing at the edge and the generator's guarantee of completeness for less code per validation.
+See the discussion in the implementation section.
+It is rarely worth it, because the number of validations per bounded context is small.
+
+[[variant-registry]]
+=== Configured rules with a schema registry
+
+`POST /{context}/v1/validations` with a body of `{ "type": "same-person", "input": { ... } }`, and input schemas published at runtime through `GET /{context}/v1/validation-types/{type}`.
+
+* New validations need no change to the API contract at all.
+* Typing moves from the contract to runtime; clients cannot generate typed clients for individual validations, and the contract no longer shows which validations exist.
+
+Use this variant only when rules are configured rather than coded, for example in a rules engine where business users maintain the rules.
+When every validation needs implementation work, the benefit does not materialise and the liabilities remain.
+
+=== QUERY instead of POST
+
+`QUERY` expresses the semantics exactly: safe, idempotent, with a body, and cacheable.
+OpenAPI 3.2 supports it, but support in gateways, proxies, client libraries and code generators is not mature enough.
+`QUERY` can be added later to the same paths alongside `POST`.
+That is purely additive, and `POST` can then follow the normal deprecation and sunset process.
+
+== Rejected alternatives
+
+=== A central ValidationService
+
+One service that implements every validation for every bounded context.
+
+* It pulls business rules out of the domains that own them, which makes those domains anaemic.
+* It becomes a dumping ground: it needs to know every domain model, and every new validation makes it larger and more entangled.
+* Every team has to change, test and release a service it does not own, coordinating with every other team that does the same.
+
+=== A ValidationService as a façade
+
+One service that offers all validations in a single API and forwards each one to the bounded context that owns it.
+This keeps the rules with their owners, but it does not remove the need for the owning bounded contexts to expose their validations; it duplicates them.
+
+* It adds a network hop and a runtime dependency to every validation.
+* Every new validation needs a coordinated change and release in a service the owning team does not own.
+* From the outside it is still a dumping ground: a single API that collects unrelated operations from every domain and has no domain of its own.
+
+What the façade offers, one place to find validations and one set of conventions, is provided by this pattern without a runtime service: the conventions by the pattern itself, and discoverability by the API catalogue.
+
+=== A single path parameter with a `oneOf` request and response
+
+`POST /validations/{validation-name}`, with a request body that is a `oneOf` over all input schemas and a response that is a `oneOf` over all result schemas.
+
+* OpenAPI cannot express that a specific value of `{validation-name}` requires a specific request variant, so the contract accepts any variant on any path and the pairing becomes a runtime check.
+* The path parameter and the body variant are two discriminators that can disagree.
+* `oneOf` requires exactly one matching subschema.
+Structurally similar inputs match more than one variant and fail, unless every variant carries a discriminator property and forbids additional properties.
+* Adding a variant to the response union can break clients whose generated types or exhaustive `switch` statements do not know the new variant.
+* Code generators produce loose union types instead of a precise type per validation.
+* A breaking change to one validation forces a new major version of the whole API.
+
+== Related patterns
+
+Hexagonal Architecture::
+Each validation is a use case behind a driving port; its handler is a driving adapter, and its sources are driven ports.
+
+Bounded Context::
+Determines which service owns a validation: the one that owns the concept the rule is about.
+
+Anti-Corruption Layer::
+Used in a driven adapter when a rule needs information from another bounded context.
+
+Long-Running Operation::
+The asynchronous mode: `202 Accepted`, a job resource behind `Location`, and polling or notification.
+
+Tolerant Reader::
+Expected of clients for the open parts of the contract: the `validation` name in the envelope, rule codes and `details` properties.
+
+Strategy::
+The basis of the generic handler and schema registry variants.
+
+== Summary
+
+A Domain Validation API exposes business-rule validations from the bounded context that owns the rules, as one typed operation per validation on a literal path under that context's `validations` collection.
+Every result extends a shared envelope with a three-valued outcome and structured findings, and verdicts are strictly separated from request errors.
+`POST` is used for pragmatic reasons, with idempotency and caching handled explicitly, and long-running validations use the same operation with `Prefer: respond-async`, supported by a shared technical component.
+
+In Spring Boot, each validation is a vertical slice with a thin, generated, typed request handler behind its own `UseCase` interface.
+Adding a validation is additive, breaks no client, and involves only the team that owns the rule.
