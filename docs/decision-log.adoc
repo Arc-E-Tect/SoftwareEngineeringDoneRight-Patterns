@@ -113,16 +113,21 @@ The rules pack in the Library repository follows that repository's `-iff` conven
 
 |2026-11-17
 |Inbound ports carry `UseCase` as a suffix, not a prefix; the pattern document's prefix was an error.
-The terms are inbound and outbound, not driving and driven.
+The terms are inbound and outbound, not driving and driven, everywhere: in the documents, and in package names, class names and comments in the source code.
 
 |2026-11-17
-|Packages follow the Architecture Validator's defaults: `application.port.inbound`, `application.port.outbound`, `adapter.inbound`, `adapter.outbound`.
+|The red-thread code in SoftwareEngineeringDoneRight-Code is the reference for the hexagonal structure.
+Packages per slice: `application.domain.model`, `application.domain.service`, `application.port.inbound` (with `command` and `result`), `application.port.outbound`, `adapter.inbound`, `adapter.outbound` and `configuration`; these are also the Architecture Validator's defaults.
 
 |2026-11-17
 |An inbound port takes a command (`application.port.inbound.command`) and returns a result (`application.port.inbound.result`); inbound adapters never depend on the domain model.
+As in red-thread, a command is a class that checks its input in its constructor, a result is a sealed interface with one record per way the use case can end (for `name-iban-match`: `Checked`, `UnsupportedCountry`, `InvalidChecksum`), and the inbound adapter switches over it.
 
 |2026-11-17
-|The verdict model (`Verdict`, `Outcome`, `Finding`, `RuleCode`, `Severity`) is domain model in `...validation.verdict`; each use case returns its own port result, built from the verdict by the application service.
+|A use case is implemented by a domain service named after it, with the suffix `Service`: `ValidateNameIbanMatchService` implements `ValidateNameIbanMatchUseCase`.
+
+|2026-11-17
+|The verdict model (`Verdict`, `Outcome`, `Finding`, `RuleCode`, `Severity`) is domain model in `...validation.verdict`; each use case returns its own port result, built from the verdict by the domain service.
 
 |2026-11-17
 |Beans are wired by an explicit `@Configuration` class per slice, in `...validation.<slice>.configuration`.
@@ -138,7 +143,8 @@ OpenAPI Generator `documentationProvider=source`.
 |The pattern rules pack lives in the Library repository next to `hexagonal-spring-rules` and stays as close as possible to how that pack is built and configured; deviations are asked first.
 
 |2026-11-17
-|The Architecture Validator's naming conventions stay off; the pattern rules pack enforces the pattern's naming.
+|The Architecture Validator's naming conventions are on (`namingConventionsEnabled = true`): inbound ports end in `UseCase`, domain services in `Service`, and controllers in `Controller`.
+They stayed off only while the pattern document used a `UseCase` prefix.
 |===
 
 == API
@@ -240,4 +246,7 @@ A surviving mutant is fixed with a test, or excluded only with the maintainer's 
 
 |2026-11-17
 |`domain-validation-api-pattern.adoc` is stored as received (v3) first; every change that these decisions require is then proposed as a diff for approval.
+
+|2026-11-17
+|Seven approved edits bring the pattern document in line with these decisions, one commit each: the example name `name-iban-match`; the `UseCase` suffix; inbound and outbound; commands and sealed results on the inbound port with red-thread's package layout, generated code in each slice's inbound web adapter and a configuration package per slice; the context in the server URL; the `com.arc_e_tect` base package; and the test levels named after the test taxonomy, with features per API operation next to the use-case scenarios.
 |===

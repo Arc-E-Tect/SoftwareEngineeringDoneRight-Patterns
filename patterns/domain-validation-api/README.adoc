@@ -32,7 +32,7 @@ The reference implementation is the payments bounded context with one validation
 The reference implementation deliberately omits security and must not be used as-is in production; link:../../README.adoc[the repository README →] explains why.
 ====
 
-== Where the implementation differs from the document
+== The document and the implementation
 
-The pattern document is the specification.
-Where decisions taken while building the reference implementation require the document to change, those changes are proposed and made in the document itself; until they are, link:../../docs/decision-log.adoc[the decision log →] records them.
+The pattern document is the specification, and the reference implementation follows it.
+Where building the implementation leads to a decision that changes the pattern, the document is changed with it, and link:../../docs/decision-log.adoc[the decision log →] records the decision and its reason.
