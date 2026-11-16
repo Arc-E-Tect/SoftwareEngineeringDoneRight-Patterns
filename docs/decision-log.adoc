@@ -1,0 +1,217 @@
+= Decision log
+:toc: left
+:toclevels: 2
+:icons: font
+
+The decisions taken while building this repository, with the reason where one was given.
+Newest decisions are added at the end of their section.
+
+== Working agreements
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|A commit that contains code changed by Claude ends with the trailer `Co-authored-by: Claude <noreply@anthropic.com>`; other commits carry no trailer.
+
+|2026-11-17
+|Git worktrees live in `../worktrees-<repo name>/`, never inside the checkout, because a worktree inside the checkout disturbs the IDE's scan of the project.
+
+|2026-11-17
+|One branch and pull request per phase (Phase 1 hardening, Phase 2 skeleton, Phase 3 API); in Phase 5 one per slice step, each merged before the next starts.
+
+|2026-11-17
+|Commits on a branch follow the TDD cycle: a `test:` commit with the failing test, a `feat:` commit that makes it pass, and a `refactor:` commit when there is one.
+Pull requests are squash-merged, so the cycle is visible on the pull-request branch only.
+|===
+
+== Repository and hardening
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|The repository carries the same hardening baseline as SoftwareEngineeringDoneRight-API, -Gradle and -Library: the same Git hooks and setup script, `.gitignore` base, `SECURITY.md`, `ZERO_CREDENTIALS_POLICY.md`, `CODEOWNERS` and instructions; the same `main` ruleset (squash only, Admin bypass `always` for the release automation, `main` and `maintenance` protected), release-tag ruleset, Actions restrictions with SHA pinning, private vulnerability reporting, 30-day retention and `release` environment.
+
+|2026-11-17
+|No CodeQL, no dependency review and no pull-request CI with required checks; builds run on push, filtered by path, as in the reference repositories.
+
+|2026-11-17
+|Dependabot alerts are on, but there is no Dependabot configuration; dependencies are updated by the house dependency updater through `maintenance` pull requests.
+
+|2026-11-17
+|The licence stays MIT.
+|===
+
+== Structure and build
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|Layout: one folder per pattern.
+`patterns/domain-validation-api/` holds `domain-validation-api-pattern.adoc`, `reference-implementation/` (the service) and `validation-execution/` (the asynchronous Spring Boot starter).
+The API-Only specification library is shared at `api/` in the root, with one bundle target per pattern.
+
+|2026-11-17
+|Every Gradle project is a standalone build with its own wrapper, settings and version catalog; `includeBuild` is used only where one project consumes another.
+
+|2026-11-17
+|Build scripts use the Groovy DSL.
+
+|2026-11-17
+|Gradle 9.8.2.
+Java 25 in this repository; the rules pack in the Library repository targets Java 21, like `hexagonal-spring-rules`, so Java 21 consumers can use it.
+
+|2026-11-17
+|Spring Boot: the latest stable 4.1.x.
+
+|2026-11-17
+|Versions are managed with refreshVersions and kept in `gradle/libs.versions.toml`; `versions.properties` stays empty.
+Every catalog alias in this repository carries the suffix `-sedr` (the `-iff` suffix belongs to an example project from the book).
+The rules pack in the Library repository follows that repository's `-iff` convention for now.
+
+|2026-11-17
+|Dependencies managed by the Spring Boot BOM are catalog entries without a version; no inline coordinates in build scripts.
+
+|2026-11-17
+|Package root `com.arc_e_tect.payments`, group `com.arc-e-tect.patterns`.
+|===
+
+== Architecture
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|The example validation is `name-iban-match`: slice package `nameibanmatch`, inbound port `ValidateNameIbanMatchUseCase`, controller `NameIbanMatchController`, generated interface `NameIbanMatchApi`, operationId `validateNameIbanMatch`.
+
+|2026-11-17
+|Inbound ports carry `UseCase` as a suffix, not a prefix; the pattern document's prefix was an error.
+The terms are inbound and outbound, not driving and driven.
+
+|2026-11-17
+|Packages follow the Architecture Validator's defaults: `application.port.inbound`, `application.port.outbound`, `adapter.inbound`, `adapter.outbound`.
+
+|2026-11-17
+|An inbound port takes a command (`application.port.inbound.command`) and returns a result (`application.port.inbound.result`); inbound adapters never depend on the domain model.
+
+|2026-11-17
+|The verdict model (`Verdict`, `Outcome`, `Finding`, `RuleCode`, `Severity`) is domain model in `...validation.verdict`; each use case returns its own port result, built from the verdict by the application service.
+
+|2026-11-17
+|Beans are wired by an explicit `@Configuration` class per slice, in `...validation.<slice>.configuration`.
+
+|2026-11-17
+|Generated OpenAPI code is inbound-adapter code: one generator run per validation tag, into that slice's `adapter.inbound.web.api` package; each slice gets its own copy of the envelope classes.
+OpenAPI Generator `documentationProvider=source`.
+
+|2026-11-17
+|The asynchronous component (`ValidationExecution`, `SubmitValidationJobUseCase`, `ValidationJobStore`, the job resource) is a Spring Boot starter in its own project, `patterns/domain-validation-api/validation-execution/`, package `com.arc_e_tect.validation.async`.
+
+|2026-11-17
+|The pattern rules pack lives in the Library repository next to `hexagonal-spring-rules` and stays as close as possible to how that pack is built and configured; deviations are asked first.
+
+|2026-11-17
+|The Architecture Validator's naming conventions stay off; the pattern rules pack enforces the pattern's naming.
+|===
+
+== API
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|OpenAPI 3.1.1 and AsyncAPI 3.1.0.
+
+|2026-11-17
+|Publisher target `domain-validation-api`, starting at version 0.0.1.
+
+|2026-11-17
+|The server URL ends in `/payments`; paths start at `/v1/validations/name-iban-match`, and the job resource is `/v1/validations/name-iban-match/{validationId}`.
+
+|2026-11-17
+|The reference implementation's build runs the Publisher on `api/` and publishes to the `file` channel; the Subscriber reads that directory, locally and in CI. The built `dist/` is not committed.
+
+|2026-11-17
+|The reference API's `.redocly.lint.yaml` is reused unchanged; every operation declares `security: []`.
+
+|2026-11-17
+|Problem Details follow the reference API: `ProblemDetailsV1` plus one fragment per problem type with `const` type, title and status, served as `application/problem+json`.
+|===
+
+== Behaviour of the example
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|Names match `exact` when equal after normalising case, whitespace and diacritics, `close` when the Jaro-Winkler similarity is at least 0.90, and `none` otherwise.
+Close and no match give finding `NAME_IBAN_MISMATCH` (error, pointer `/accountHolderName`); indeterminate gives `PAYEE_VERIFICATION_UNAVAILABLE` (warning).
+
+|2026-11-17
+|One outbound port, `AccountHolderRegistry`, with one simulated adapter, `PayeeVerificationSchemeClient`; no own-bank repository.
+
+|2026-11-17
+|The simulation is deterministic: a configured table maps IBAN to registered name; per IBAN an account can be slow (configured delay) or unavailable. A port timeout turns slow or unavailable into `indeterminate`.
+
+|2026-11-17
+|A well-formed IBAN that the scheme does not know gives `invalid` with match `none`.
+
+|2026-11-17
+|`422` for an IBAN whose mod-97 checksum fails or whose country the scheme does not support; `400` for a request that breaks the schema.
+
+|2026-11-17
+|Asynchronous only on `Prefer: respond-async`; then a missing `Idempotency-Key` gives `400`, the same key with the same body returns the existing job, and the same key with a different body gives `422`. In synchronous mode the key is ignored.
+
+|2026-11-17
+|Job status `pending`, `completed` or `failed`; `Retry-After` on `202` and on a pending job; a completed job carries the full result; an unknown id gives `404`.
+
+|2026-11-17
+|The job store is an in-memory adapter behind `ValidationJobStore`.
+
+|2026-11-17
+|Webhook subscriber URLs come from configuration; one best-effort delivery per completion.
+The webhook and the Kafka event share one `ValidationCompletedEventV1` schema, which carries a reference only: `validationId`, `validation`, `status`, `outcome`, `completedAt` and the job's location.
+
+|2026-11-17
+|Kafka topic `payments.validation.completed.v1`, keyed by `validationId`.
+
+|2026-11-17
+|Responses carry `Cache-Control: no-store` and request bodies are never logged; there is no in-service result cache.
+|===
+
+== Testing
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|Test suites: `test` (unit), `testComponent`, `testContract`, `testSystem` (BDD) and `testArchitecture`; no end-to-end and no documentation suite.
+
+|2026-11-17
+|The 100% coverage gate is measured on unit tests only; the Spring Boot main class and configuration classes are covered by tests, not excluded.
+
+|2026-11-17
+|BDD with Cucumber-JVM on the JUnit Platform Suite in `testSystem`: Spring Boot on a random port over real HTTP, WireMock receiving webhooks, Kafka in Docker through Testcontainers. One feature per API operation, plus one for the webhook and one for the event.
+
+|2026-11-17
+|Contract tests: HTTP through TranscriberJ's REST Docs emitter, the Kafka event through its Microcks emitter, both in `testContract`; Docker is required.
+|===
+
+== Pattern document
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|`domain-validation-api-pattern.adoc` is stored as received (v3) first; every change that these decisions require is then proposed as a diff for approval.
+|===
