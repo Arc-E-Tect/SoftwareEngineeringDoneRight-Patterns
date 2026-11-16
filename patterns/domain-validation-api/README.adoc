@@ -1,0 +1,38 @@
+= Domain Validation API
+:icons: font
+
+[NOTE]
+.Where the links in this document go
+====
+`↗` leads to an external site, `→` to another file in this repository, and `§` to a section of this same file.
+====
+
+The Domain Validation API exposes business-rule validations from the bounded context that owns the rules.
+Each bounded context offers its validations as typed operations in its own API, following one shared set of conventions for the contract, the outcome and asynchronous execution.
+
+link:domain-validation-api-pattern.adoc[The pattern document →] describes the pattern in full: its context, problem and forces, the solution, the implementation in Spring Boot following Hexagonal Architecture, its consequences, variants and rejected alternatives.
+
+== Reference implementation
+
+The reference implementation is the payments bounded context with one validation, `name-iban-match`: does the name the payer provides match the name of the holder of the account with the given IBAN?
+
+[cols="2,5",options="header"]
+|===
+|Project |What it is
+
+|link:reference-implementation/README.adoc[`reference-implementation` →]
+|The payments service, in Spring Boot, following Hexagonal Architecture: the `name-iban-match` validation as one vertical slice, synchronous and asynchronous.
+
+|link:validation-execution/README.adoc[`validation-execution` →]
+|The reusable asynchronous execution of validations, as a Spring Boot starter: the job lifecycle, idempotent submission, and the job resource.
+|===
+
+[WARNING]
+====
+The reference implementation deliberately omits security and must not be used as-is in production; link:../../README.adoc[the repository README →] explains why.
+====
+
+== Where the implementation differs from the document
+
+The pattern document is the specification.
+Where decisions taken while building the reference implementation require the document to change, those changes are proposed and made in the document itself; until they are, link:../../docs/decision-log.adoc[the decision log →] records them.

@@ -1,0 +1,30 @@
+= Patterns
+:icons: font
+
+[NOTE]
+.Where the links in this document go
+====
+`↗` leads to an external site, `→` to another file in this repository, and `§` to a section of this same file.
+====
+
+Every pattern has its own folder, with a `README.adoc` that introduces it, the pattern document itself, and the projects of its reference implementation.
+
+[cols="2,3,3",options="header"]
+|===
+|Pattern |Document |Reference implementation
+
+|link:domain-validation-api/README.adoc[Domain Validation API →]
+|link:domain-validation-api/domain-validation-api-pattern.adoc[`domain-validation-api-pattern.adoc` →]
+|link:domain-validation-api/reference-implementation/README.adoc[`reference-implementation` →], with link:domain-validation-api/validation-execution/README.adoc[`validation-execution` →]
+|===
+
+== Adding a pattern
+
+A new pattern gets a folder `patterns/<pattern-name>/` with:
+
+* `README.adoc`, which introduces the pattern and links to its document and its reference implementation;
+* `<pattern-name>-pattern.adoc`, the pattern document;
+* one folder per project of its reference implementation, each a standalone Gradle build with its own `README.adoc`.
+
+Its API specification, if it has one, is a bundle target of the shared specification library at the root of the repository.
+The new pattern is added to the table above and to the root README's index.
