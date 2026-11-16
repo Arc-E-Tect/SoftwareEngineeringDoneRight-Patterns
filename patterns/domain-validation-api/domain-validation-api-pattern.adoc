@@ -731,9 +731,10 @@ The structure supports driving each validation test-first:
 
 * Business scenarios for a validation are written as one feature file per use case, and run against the `UseCase` interface with in-memory fakes for the outbound ports.
 Valid, invalid and indeterminate outcomes are all reachable without infrastructure.
+* Features per API operation run against the running service, and show that each operation works as its contract advertises, synchronously and asynchronously.
 * Mapper tests verify the translation between generated types and the domain.
 * Contract tests verify the controller against the OpenAPI document.
-* Integration tests verify each outbound adapter against its real counterpart, separately from the rule.
+* System tests verify each outbound adapter against its real counterpart, separately from the rule.
 * If the asynchronous component is used, its own test suite covers the job lifecycle; the bounded context only verifies that its validations are wired into it.
 
 [[enforcing-the-structure]]
