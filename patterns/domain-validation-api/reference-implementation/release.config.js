@@ -8,7 +8,7 @@ module.exports = {
     // other projects in this repository.
     tagFormat: "domain-validation-api-reference-implementation-v${version}",
     plugins: [
-        ["../release/component-commit-analyzer", {
+        ["../../../release/component-commit-analyzer", {
             preset: 'angular',
             releaseRules: [
                 { type: 'feat', release: 'minor' },
@@ -24,7 +24,7 @@ module.exports = {
                 breakingHeaderPattern: /^(\w*)(?:\((.*)\))?!: (.*)$/
             }
         }],
-        ["../release/component-release-notes", {
+        ["../../../release/component-release-notes", {
             preset: 'angular',
             parserOpts: {
                 noteKeywords: ['BREAKING CHANGE', 'BREAKING CHANGES', 'BREAKING'],
