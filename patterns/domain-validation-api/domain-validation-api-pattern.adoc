@@ -462,7 +462,7 @@ In the payments service, that looks like this:
 
 [source,text]
 ----
-com.arcetect.payments
+com.arc_e_tect.payments
 ├── ...                                     # the rest of the payments bounded context
 └── validation
     ├── verdict                             # Verdict, Outcome, Finding, RuleCode, Severity
@@ -752,7 +752,7 @@ static final ArchRule controllers_depend_only_on_use_cases_and_mappers =
                 .resideInAnyPackage(
                         "..application.port.inbound..",
                         "..adapter.inbound.web..",
-                        "com.arcetect.validation.async..",
+                        "com.arc_e_tect.validation.async..",
                         "java..",
                         "org.springframework..");
 
@@ -774,7 +774,7 @@ static final ArchRule inbound_adapters_do_not_depend_on_the_domain =
 
 @ArchTest
 static final ArchRule validation_slices_are_independent =
-        slices().matching("com.arcetect.payments.validation.(*)..")
+        slices().matching("com.arc_e_tect.payments.validation.(*)..")
                 .should().notDependOnEachOther()
                 .ignoreDependency(alwaysTrue(), resideInAnyPackage("..verdict.."));
 ----
