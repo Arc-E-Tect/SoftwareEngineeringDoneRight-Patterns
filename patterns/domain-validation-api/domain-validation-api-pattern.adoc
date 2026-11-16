@@ -386,7 +386,7 @@ The implementation follows Hexagonal Architecture.
 Each validation is a use case behind its own driving port, and the HTTP handler is the driving adapter for that use case and nothing else.
 The business rule is hidden behind the use case interface, so the HTTP layer and the rule can evolve independently.
 
-By convention, use case interfaces are prefixed with `UseCase`, for example `UseCaseValidateNameIbanMatch`.
+By convention, use case interfaces are suffixed with `UseCase`, for example `ValidateNameIbanMatchUseCase`.
 
 === One handler per validation
 
@@ -423,7 +423,7 @@ A validation therefore cannot be published in the contract without an implementa
 
 |Driving port
 |One use case interface per validation
-|`UseCaseValidateNameIbanMatch`
+|`ValidateNameIbanMatchUseCase`
 
 |Application / domain
 |The use case implementation and the business rule
@@ -457,7 +457,7 @@ com.arcetect.payments
     │   ├── domain                          # PayeeClaim, NameIbanMatchDetails, rules
     │   ├── application
     │   │   ├── port
-    │   │   │   ├── in                      # UseCaseValidateNameIbanMatch
+    │   │   │   ├── in                      # ValidateNameIbanMatchUseCase
     │   │   │   └── out                     # AccountHolderRegistry
     │   │   └── NameIbanMatchValidator
     │   └── adapter
@@ -476,7 +476,7 @@ Adding a validation adds a slice; existing slices are not touched.
 
 [source,java]
 ----
-public interface UseCaseValidateNameIbanMatch {
+public interface ValidateNameIbanMatchUseCase {
     Verdict<NameIbanMatchDetails> validate(PayeeClaim claim);
 }
 ----
@@ -489,12 +489,12 @@ class NameIbanMatchController implements NameIbanMatchApi {
 
     private static final String VALIDATION = "name-iban-match";
 
-    private final UseCaseValidateNameIbanMatch useCase;
+    private final ValidateNameIbanMatchUseCase useCase;
     private final NameIbanMatchMapper mapper;
     private final ValidationExecution execution;
 
     NameIbanMatchController(
-            UseCaseValidateNameIbanMatch useCase,
+            ValidateNameIbanMatchUseCase useCase,
             NameIbanMatchMapper mapper,
             ValidationExecution execution) {
         this.useCase = useCase;
@@ -565,7 +565,7 @@ Both are the same for every validation in every bounded context, and neither con
 They are therefore provided as a reusable technical component, such as a Spring Boot starter, that each bounded context can include.
 
 * *Driving adapter:* `ValidationExecution` reads the `Prefer` and `Idempotency-Key` headers and chooses between `200` with the result and `202` with a `Location`.
-* *Application layer:* `UseCaseSubmitValidationJob` creates the job, runs the supplied validation in the background, and records completion or failure through a `ValidationJobStore` driven port.
+* *Application layer:* `SubmitValidationJobUseCase` creates the job, runs the supplied validation in the background, and records completion or failure through a `ValidationJobStore` driven port.
 Idempotency of submission is enforced here, so it holds no matter which adapter submits the job.
 * *Job resource:* a `ValidationJobController` serves `GET /{context}/v1/validations/{validation-name}/{validation-id}` for all validations of the bounded context.
 * *Driven port:* `ValidationJobStore`, for which the bounded context supplies or configures the persistence adapter.
@@ -655,10 +655,10 @@ static final ArchRule controllers_depend_only_on_use_cases_and_mappers =
                         "org.springframework..");
 
 @ArchTest
-static final ArchRule use_cases_are_prefixed =
+static final ArchRule use_cases_are_suffixed =
         classes().that().resideInAPackage("..application.port.in..")
                 .and().areInterfaces()
-                .should().haveSimpleNameStartingWith("UseCase");
+                .should().haveSimpleNameEndingWith("UseCase");
 
 @ArchTest
 static final ArchRule domain_and_application_do_not_depend_on_generated_api =
@@ -678,7 +678,7 @@ static final ArchRule validation_slices_are_independent =
 ----
 
 The controller rule stops handlers from slowly accumulating logic.
-The prefix rule keeps every driving port recognisable as a use case.
+The suffix rule keeps every driving port recognisable as a use case.
 The dependency rules keep the domain free of transport and infrastructure concerns.
 The slice rule guarantees that adding or removing a validation cannot affect another one.
 
