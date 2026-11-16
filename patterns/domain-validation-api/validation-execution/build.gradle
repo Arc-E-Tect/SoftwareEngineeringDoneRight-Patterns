@@ -5,6 +5,7 @@
 plugins {
     id 'java-library'
     id 'jacoco'
+    alias(libs.plugins.pitest.sedr)
 }
 
 java {
@@ -70,4 +71,25 @@ tasks.named('jacocoTestCoverageVerification') {
 
 tasks.named('check') {
     dependsOn 'jacocoTestCoverageVerification'
+}
+
+// Mutation testing: every mutant of the project's own code must be killed by a unit test, so that a
+// test which runs code without checking its result fails the build. Coverage shows what the unit tests
+// run; the mutation score shows what they verify.
+pitest {
+    pitestVersion = libs.versions.pitest.sedr.get()
+    junit5PluginVersion = libs.versions.pitest.junit5.sedr.get()
+    targetClasses = ['com.arc_e_tect.validation.async.*']
+    testSourceSets = [sourceSets.test]
+    mutators = ['STRONGER']
+    mutationThreshold = 100
+    outputFormats = ['HTML', 'XML']
+    timestampedReports = false
+    // Only so that the empty skeleton builds: once there is code there are mutants, and the
+    // threshold above applies to every one of them.
+    failWhenNoMutations = false
+}
+
+tasks.named('check') {
+    dependsOn 'pitest'
 }

@@ -37,7 +37,7 @@ The Gradle wrapper downloads Gradle itself, and the build provisions the Java to
 ./gradlew build
 ----
 
-`build` runs every test suite and the coverage gate:
+`build` runs every test suite, the coverage gate and the mutation gate:
 
 [cols="1,3",options="header"]
 |===
@@ -45,7 +45,7 @@ The Gradle wrapper downloads Gradle itself, and the build provisions the Java to
 
 |`test`
 |Unit tests: one class at a time, everything outside it mocked, no Spring context.
-They carry the coverage gate: 100% of the project's own code.
+They carry both quality gates: 100% coverage of the project's own code, and a 100% mutation score with PIT, so every behaviour is verified and not just run.
 
 |`testComponent`
 |Component tests: one component with everything outside it mocked, no Spring context.

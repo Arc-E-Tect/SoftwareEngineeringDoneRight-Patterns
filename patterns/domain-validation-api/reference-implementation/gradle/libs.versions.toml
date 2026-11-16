@@ -3,7 +3,12 @@
 [versions]
 
 junit-sedr = "6.1.3"
+pitest-sedr = "1.30.2"
+pitest-junit5-sedr = "1.2.3"
+pitest-plugin-sedr = "1.19.0"
 
 [libraries]
 
 [plugins]
+
+pitest-sedr = { id = "info.solidsoft.pitest", version.ref = "pitest-plugin-sedr" }
