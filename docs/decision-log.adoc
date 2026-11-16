@@ -221,6 +221,11 @@ The webhook and the Kafka event share one `ValidationCompletedEventV1` schema, w
 |The 100% coverage gate is measured on unit tests only; the Spring Boot main class and configuration classes are covered by tests, not excluded.
 
 |2026-11-17
+|Mutation testing with PIT (`STRONGER` mutators) on the unit tests, with a 100% mutation-score gate in `check`, because coverage only shows what the tests run, not what they verify.
+A surviving mutant is fixed with a test, or excluded only with the maintainer's explicit approval.
+`failWhenNoMutations` is off only so that the empty skeleton builds.
+
+|2026-11-17
 |BDD with Cucumber-JVM on the JUnit Platform Suite in `testSystem`: Spring Boot on a random port over real HTTP, WireMock receiving webhooks, Kafka in Docker through Testcontainers. One feature per API operation, plus one for the webhook and one for the event.
 
 |2026-11-17

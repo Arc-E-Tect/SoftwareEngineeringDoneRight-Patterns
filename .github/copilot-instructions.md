@@ -68,3 +68,4 @@ The hooks provide local defense in depth by rejecting keystores and likely hardc
 - Every catalog alias carries the suffix `-sedr`, in all alias categories (`versions`, `libraries`, `bundles` and `plugins`). Dependencies managed by a BOM are catalog entries without a version.
 - Use `gradlePluginPortal()` for Gradle plugins and `mavenCentral()` for everything else; `mavenLocal()` only where a decision in the decision log allows it.
 - Test suites are declared only in the `testing { suites { ... } }` DSL: `test` (unit), `testComponent`, `testContract`, `testSystem` and `testArchitecture`. Never use the term "integration test".
+- Unit tests carry two gates: 100% JaCoCo coverage and a 100% PIT mutation score. A test exists to verify one behaviour of the unit, with one assertion and a `@DisplayName` that says what it proves; coverage follows from that, never the other way round.
