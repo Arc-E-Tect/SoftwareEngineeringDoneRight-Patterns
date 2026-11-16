@@ -397,7 +397,8 @@ Giving each validation its own tag yields one interface, and therefore one contr
 
 [source,java]
 ----
-// Generated from the OpenAPI document; one interface per validation tag.
+// Generated from the OpenAPI document into the slice's adapter.inbound.web.api package;
+// one interface per validation tag.
 public interface NameIbanMatchApi {
 
     @PostMapping("/payments/v1/validations/name-iban-match")
@@ -425,9 +426,13 @@ A validation therefore cannot be published in the contract without an implementa
 |One use case interface per validation
 |`ValidateNameIbanMatchUseCase`
 
+|Port data types
+|The command the inbound port takes and the result it returns, owned by the port
+|`ValidateNameIbanMatchCommand`, `ValidateNameIbanMatchResult`
+
 |Application / domain
-|The use case implementation and the business rule
-|`NameIbanMatchValidator`
+|The use case implementation, a domain service, and the business rule in the domain model
+|`ValidateNameIbanMatchService`, `NameMatchRule`
 
 |Outbound port
 |Every source the rule needs
@@ -440,6 +445,10 @@ A validation therefore cannot be published in the contract without an implementa
 |Verdict model
 |The bounded context's own domain types for outcomes and findings
 |`Verdict<D>`, `Outcome`, `Finding`, `RuleCode`, `Severity`
+
+|Configuration
+|One configuration class per validation that wires its beans
+|`NameIbanMatchConfiguration`
 |===
 
 === Package layout
@@ -454,22 +463,27 @@ com.arcetect.payments
 └── validation
     ├── verdict                             # Verdict, Outcome, Finding, RuleCode, Severity
     ├── nameibanmatch
-    │   ├── domain                          # PayeeClaim, NameIbanMatchDetails, rules
     │   ├── application
-    │   │   ├── port
-    │   │   │   ├── in                      # ValidateNameIbanMatchUseCase
-    │   │   │   └── out                     # AccountHolderRegistry
-    │   │   └── NameIbanMatchValidator
-    │   └── adapter
-    │       ├── in
-    │       │   └── web                     # NameIbanMatchController, NameIbanMatchMapper
-    │       └── out
-    │           └── scheme                  # PayeeVerificationSchemeClient
-    ├── ...                                 # one slice per validation
-    └── api                                 # generated OpenAPI interfaces and models (build output)
+    │   │   ├── domain
+    │   │   │   ├── model                   # PayeeClaim, NameIbanMatchDetails, NameMatchRule
+    │   │   │   └── service                 # ValidateNameIbanMatchService
+    │   │   └── port
+    │   │       ├── inbound                 # ValidateNameIbanMatchUseCase
+    │   │       │   ├── command             # ValidateNameIbanMatchCommand
+    │   │       │   └── result              # ValidateNameIbanMatchResult
+    │   │       └── outbound                # AccountHolderRegistry
+    │   ├── adapter
+    │   │   ├── inbound
+    │   │   │   └── web                     # NameIbanMatchController, NameIbanMatchMapper
+    │   │   │       └── api                 # generated OpenAPI interface and models (build output)
+    │   │   └── outbound
+    │   │       └── scheme                  # PayeeVerificationSchemeClient
+    │   └── configuration                   # NameIbanMatchConfiguration
+    └── ...                                 # one slice per validation
 ----
 
-Each validation is a vertical slice with its own domain, ports and adapters.
+Each validation is a vertical slice with its own domain, ports, adapters and configuration.
+Even the code generated from the contract belongs to the slice: it is the inbound web adapter's code, generated into that adapter's `api` package, so every slice has its own copy of the envelope types and no slice depends on another's.
 Adding a validation adds a slice; existing slices are not touched.
 
 === Controller and use case
@@ -477,7 +491,83 @@ Adding a validation adds a slice; existing slices are not touched.
 [source,java]
 ----
 public interface ValidateNameIbanMatchUseCase {
-    Verdict<NameIbanMatchDetails> validate(PayeeClaim claim);
+    ValidateNameIbanMatchResult validate(ValidateNameIbanMatchCommand command);
+}
+----
+
+The command carries the input across the port and refuses input that can never be valid; equality is by value.
+
+[source,java]
+----
+public class ValidateNameIbanMatchCommand {
+    private final String iban;
+    private final String accountHolderName;
+
+    public ValidateNameIbanMatchCommand(String iban, String accountHolderName) {
+        if (iban == null || iban.isEmpty()) {
+            throw new IllegalArgumentException("IBAN cannot be null or empty");
+        }
+        if (accountHolderName == null || accountHolderName.isEmpty()) {
+            throw new IllegalArgumentException("Account holder name cannot be null or empty");
+        }
+        this.iban = iban;
+        this.accountHolderName = accountHolderName;
+    }
+
+    public String getIban() { return iban; }
+    public String getAccountHolderName() { return accountHolderName; }
+
+    // equals and hashCode over both fields
+}
+----
+
+The result names every way the use case can end, so the inbound adapter has to handle each one.
+A verdict is one of them; a request the domain refuses is another.
+
+[source,java]
+----
+public sealed interface ValidateNameIbanMatchResult
+        permits ValidateNameIbanMatchResult.Checked,
+                ValidateNameIbanMatchResult.UnsupportedCountry,
+                ValidateNameIbanMatchResult.InvalidChecksum {
+
+    enum Outcome { VALID, INVALID, INDETERMINATE }
+    enum Match { EXACT, CLOSE, NONE }
+
+    record Finding(String rule, String severity, String message, String pointer) {}
+
+    // The rule was checked: a verdict, whatever its outcome.
+    record Checked(Outcome outcome, Match match, String registeredName, List<Finding> findings)
+            implements ValidateNameIbanMatchResult {}
+
+    // The request is well-formed, but the domain cannot process it.
+    record UnsupportedCountry(String countryCode) implements ValidateNameIbanMatchResult {}
+
+    record InvalidChecksum(String iban) implements ValidateNameIbanMatchResult {}
+}
+----
+
+The domain service implements the use case: it turns the command into the domain's claim, lets the rule reach a verdict, and turns the verdict into the port's result.
+
+[source,java]
+----
+public class ValidateNameIbanMatchService implements ValidateNameIbanMatchUseCase {
+
+    private final AccountHolderRegistry registry;
+    private final NameMatchRule rule;
+
+    public ValidateNameIbanMatchService(AccountHolderRegistry registry, NameMatchRule rule) {
+        this.registry = registry;
+        this.rule = rule;
+    }
+
+    @Override
+    public ValidateNameIbanMatchResult validate(ValidateNameIbanMatchCommand command) {
+        var claim = new PayeeClaim(command.getIban(), command.getAccountHolderName());
+        // ... an unsupported country or a failing checksum ends here, as its own result
+        Verdict<NameIbanMatchDetails> verdict = rule.check(claim, registry.registeredName(claim.iban()));
+        return toResult(verdict);
+    }
 }
 ----
 
@@ -505,27 +595,37 @@ class NameIbanMatchController implements NameIbanMatchApi {
     @Override
     public ResponseEntity<NameIbanMatchResult> validateNameIbanMatch(
             String prefer, UUID idempotencyKey, NameIbanMatchRequest request) {
-        var claim = mapper.toClaim(request);
+        var command = mapper.toCommand(request);
         return execution.run(
                 VALIDATION,
                 prefer,
                 idempotencyKey,
-                () -> mapper.toResult(useCase.validate(claim)));
+                () -> switch (useCase.validate(command)) {
+                    case ValidateNameIbanMatchResult.Checked checked -> mapper.toResult(checked);
+                    case ValidateNameIbanMatchResult.UnsupportedCountry refused ->
+                            throw NameIbanMatchProblems.unsupportedCountry(refused.countryCode());
+                    case ValidateNameIbanMatchResult.InvalidChecksum refused ->
+                            throw NameIbanMatchProblems.invalidChecksum();
+                });
     }
 }
 ----
 
-The handler only does what is specific to its validation: mapping the typed request to a domain object and the domain verdict back to the typed result.
+The handler only does what is specific to its validation: mapping the typed request to the use case's command, and each of the use case's results to the typed result or, for a request the domain refuses, to Problem Details with status `422`.
 A bounded context that does not offer asynchronous execution calls the use case directly and returns `200`.
 
-=== Keep the API types out of the port
+=== Keep the API types and the domain out of the adapter's reach
 
-The use case returns the domain `Verdict<D>`, never the generated `ValidationResult`.
-The mapper in the inbound adapter translates the generated request into the domain claim, and the verdict back into the generated result.
+The inbound port owns the types it exchanges: the use case takes a command and returns a result, both defined next to the port in its `command` and `result` packages.
+It never takes the generated request or returns the generated `ValidationResult`, and it never exposes the domain model.
+
+The domain service translates the command into the domain claim, lets the rule reach its domain `Verdict<D>`, and translates the verdict into the port's result.
+The mapper in the inbound adapter translates the generated request into the command, and the port's result into the generated result.
 As a result:
 
-* The response format can evolve, for instance by adding a property to the envelope, without any change to the domain.
+* The response format can evolve, for instance by adding a property to the envelope, without any change to the port or the domain.
 * The domain never depends on generated code, so regenerating the API cannot break the domain.
+* The inbound adapter never depends on the domain model, so the domain can change without touching the adapter.
 * The same use case can be driven by another adapter, such as a message listener or a batch job, without going through HTTP types.
 
 === Unavailable dependencies are a domain decision
@@ -642,28 +742,21 @@ These rules are checked with ArchUnit in the build, for example through the `arc
 ----
 @ArchTest
 static final ArchRule controllers_depend_only_on_use_cases_and_mappers =
-        classes().that().resideInAPackage("..validation..adapter.in.web..")
+        classes().that().resideInAPackage("..validation..adapter.inbound.web..")
                 .and().areAnnotatedWith(RestController.class)
                 .should().onlyDependOnClassesThat()
                 .resideInAnyPackage(
-                        "..application.port.in..",
-                        "..adapter.in.web..",
-                        "..verdict..",
-                        "..validation.api..",
+                        "..application.port.inbound..",
+                        "..adapter.inbound.web..",
                         "com.arcetect.validation.async..",
                         "java..",
                         "org.springframework..");
 
 @ArchTest
 static final ArchRule use_cases_are_suffixed =
-        classes().that().resideInAPackage("..application.port.in..")
+        classes().that().resideInAPackage("..application.port.inbound..")
                 .and().areInterfaces()
                 .should().haveSimpleNameEndingWith("UseCase");
-
-@ArchTest
-static final ArchRule domain_and_application_do_not_depend_on_generated_api =
-        noClasses().that().resideInAnyPackage("..domain..", "..application..", "..verdict..")
-                .should().dependOnClassesThat().resideInAPackage("..validation.api..");
 
 @ArchTest
 static final ArchRule domain_and_application_do_not_depend_on_adapters =
@@ -671,15 +764,20 @@ static final ArchRule domain_and_application_do_not_depend_on_adapters =
                 .should().dependOnClassesThat().resideInAPackage("..adapter..");
 
 @ArchTest
+static final ArchRule inbound_adapters_do_not_depend_on_the_domain =
+        noClasses().that().resideInAPackage("..adapter.inbound..")
+                .should().dependOnClassesThat().resideInAnyPackage("..domain..", "..verdict..");
+
+@ArchTest
 static final ArchRule validation_slices_are_independent =
         slices().matching("com.arcetect.payments.validation.(*)..")
                 .should().notDependOnEachOther()
-                .ignoreDependency(alwaysTrue(), resideInAnyPackage("..verdict..", "..validation.api.."));
+                .ignoreDependency(alwaysTrue(), resideInAnyPackage("..verdict.."));
 ----
 
 The controller rule stops handlers from slowly accumulating logic.
 The suffix rule keeps every inbound port recognisable as a use case.
-The dependency rules keep the domain free of transport and infrastructure concerns.
+The dependency rules keep the domain free of transport and infrastructure concerns, including the generated code, which lives in the adapter, and keep the inbound adapters away from the domain model.
 The slice rule guarantees that adding or removing a validation cannot affect another one.
 
 == Consequences
@@ -706,7 +804,7 @@ They never call the new path, and no response they receive changes shape.
 The build fails until a controller implements it.
 
 |Implementation
-|One new vertical slice: a controller and mapper as inbound adapter, a `UseCase` interface as inbound port, its implementation, and an outbound port and adapter for each source the rule needs.
+|One new vertical slice: a controller and mapper as inbound adapter, a `UseCase` interface as inbound port with its command and result, its implementation, an outbound port and adapter for each source the rule needs, and a configuration class that wires them.
 Other slices and the asynchronous component need no change.
 
 |Tests
