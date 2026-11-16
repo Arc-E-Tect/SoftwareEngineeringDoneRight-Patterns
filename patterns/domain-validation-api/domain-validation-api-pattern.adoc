@@ -80,6 +80,8 @@ POST /sales/v1/validations/same-work-purchased
 GET  /{context}/v1/validations/{validation-name}/{validation-id}   # asynchronous results only
 ----
 
+In a bounded context's own contract, the context is part of the server URL, for example `https://api.example.com/payments`, so the paths in the contract start at the API version, such as `/v1/validations/name-iban-match`.
+
 The segment after `/validations/` is a fixed part of the path, not a path parameter.
 That is the central decision of the contract: it binds each path to exactly one request schema and one response schema.
 
@@ -172,8 +174,10 @@ This is the operation in the payments API.
 
 [source,yaml]
 ----
+servers:
+  - url: https://api.example.com/payments
 paths:
-  /payments/v1/validations/name-iban-match:
+  /v1/validations/name-iban-match:
     post:
       operationId: validateNameIbanMatch
       tags:
@@ -401,7 +405,7 @@ Giving each validation its own tag yields one interface, and therefore one contr
 // one interface per validation tag.
 public interface NameIbanMatchApi {
 
-    @PostMapping("/payments/v1/validations/name-iban-match")
+    @PostMapping("/v1/validations/name-iban-match")
     ResponseEntity<NameIbanMatchResult> validateNameIbanMatch(
             @RequestHeader(value = "Prefer", required = false) String prefer,
             @RequestHeader(value = "Idempotency-Key", required = false) UUID idempotencyKey,
@@ -691,7 +695,7 @@ class GenericValidationController {
         this.objectMapper = objectMapper;
     }
 
-    @PostMapping("/payments/v1/validations/{validationName}")
+    @PostMapping("/v1/validations/{validationName}")
     ResponseEntity<ValidationResult> validate(
             @PathVariable String validationName,
             @RequestBody JsonNode body) throws JsonProcessingException {
