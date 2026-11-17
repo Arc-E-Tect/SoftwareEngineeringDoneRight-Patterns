@@ -31,3 +31,10 @@ Feature: Get a name-iban-match validation job
     Then the answer is 404
     And the answer is a problem of type "https://api.example.com/problems/validation-job-not-found"
     And the answer is not stored
+
+  Scenario: An identifier that is not a lower-case UUID is refused
+    When a client asks for the validation job "8D4E2A10-5B7C-4E9F-A3D6-1C2B3A4D5E6F"
+    Then the answer is 400
+    And the answer is a problem of type "https://api.example.com/problems/invalid-request"
+    And the problem says what is wrong at "validationId"
+    And the answer is not stored

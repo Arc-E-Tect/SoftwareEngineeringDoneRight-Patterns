@@ -68,17 +68,47 @@ Feature: Validate a name against an IBAN
     Then the answer is 422
     And the answer is a problem of type "https://api.example.com/payments/problems/invalid-iban-checksum"
 
-  Scenario Outline: A request that breaks the contract
+  Scenario Outline: A request that breaks the contract says where
     When a client sends the request <body>
     Then the answer is 400
+    And the answer is a problem of type "https://api.example.com/problems/invalid-request"
+    And the problem says what is wrong at "<at>"
+    And the answer is not stored
 
     Examples:
-      | body                                                                                                    | because                      |
-      | {"iban": "NL91", "accountHolderName": "Jan de Vries"}                                                   | the IBAN has no IBAN's shape |
-      | {"iban": "NL91ABNA0417164300", "accountHolderName": "   "}                                              | the name is only whitespace  |
-      | {"iban": "NL91ABNA0417164300", "accountHolderName": ""}                                                 | the name is empty            |
-      | {"iban": "NL91ABNA0417164300"}                                                                          | the name is missing          |
-      | {"iban": "NL91ABNA0417164300", "accountHolderName": "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"} | the name is too long |
+      | body                                                                                                    | at                 | because                                    |
+      | {"iban": "NL91", "accountHolderName": "Jan de Vries"}                                                   | /iban              | the IBAN has no IBAN's shape               |
+      | {"iban": "NL91ABNA0417164300", "accountHolderName": "   "}                                              | /accountHolderName | the name is only whitespace                |
+      | {"iban": "NL91ABNA0417164300", "accountHolderName": ""}                                                 | /accountHolderName | the name is empty                          |
+      | {"iban": "NL91ABNA0417164300"}                                                                          | /accountHolderName | the name is missing                        |
+      | {"iban": "NL91ABNA0417164300", "accountHolderName": null}                                               | /accountHolderName | the name is null                           |
+      | {"iban": ["NL91ABNA0417164300"], "accountHolderName": "Jan de Vries"}                                   | /iban              | the IBAN is not a string                   |
+      | {"iban": "NL91ABNA0417164300", "accountHolderName": "Jan de Vries", "nickname": "Jan"}                  | /nickname          | the body has a member the contract lacks   |
+      | {"iban": "NL91ABNA0417164300", "accountHolderName": "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"} | /accountHolderName | the name is too long |
+
+  Scenario Outline: A request that breaks the contract as a whole
+    When a client sends the request <body>
+    Then the answer is 400
+    And the answer is a problem of type "https://api.example.com/problems/invalid-request"
+    And the answer is not stored
+
+    Examples:
+      | body                                       | because                 |
+      | ["NL91ABNA0417164300", "Jan de Vries"]     | the body is no object   |
+      | {"iban": "NL91ABNA0417164300",             | the body is not JSON    |
+
+  Scenario: A request without a body
+    When a client sends a request without a body
+    Then the answer is 400
+    And the answer is a problem of type "https://api.example.com/problems/invalid-request"
+    And the answer is not stored
+
+  Scenario: An Idempotency-Key that is not a lower-case UUID
+    When a payer validates the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer with Idempotency-Key "Not-A-UUID"
+    Then the answer is 400
+    And the answer is a problem of type "https://api.example.com/problems/invalid-request"
+    And the problem says what is wrong at "Idempotency-Key"
+    And the answer is not stored
 
   Scenario: The payer prefers an asynchronous answer
     When a payer validates the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer with Idempotency-Key "0b4f8a2e-1c3d-4e5f-8a9b-0c1d2e3f4a5b"
@@ -108,6 +138,8 @@ Feature: Validate a name against an IBAN
     When a payer validates the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer without an Idempotency-Key
     Then the answer is 400
     And the answer is a problem of type "https://api.example.com/problems/invalid-request"
+    And the problem says what is wrong at "Idempotency-Key"
+    And the answer is not stored
 
   Scenario: A request the domain refuses fails its job
     When a payer validates the name "Maria Souza" against the IBAN "BR1800360305000010009795493C1", preferring an asynchronous answer with Idempotency-Key "3e7c1d5b-4f6a-4b8c-9d2e-3f4a5b6c7d8e"

@@ -14,6 +14,9 @@ api-only-subscriber-sedr = "0.4.5"
 openapi-generator-sedr = "7.27.0"
 cucumber-sedr = "8.0.4"
 wiremock-sedr = "3.13.2"
+api-only-transcriberj-sedr = "0.17.5"
+api-only-transcriberj-restdocs-sedr = "0.5.0"
+api-only-transcriberj-microcks-sedr = "2.0.0"
 
 [libraries]
 
@@ -30,6 +33,10 @@ junit-platform-suite-sedr = { module = "org.junit.platform:junit-platform-suite"
 spring-boot-starter-kafka-sedr = { module = "org.springframework.boot:spring-boot-starter-kafka" }
 spring-boot-testcontainers-sedr = { module = "org.springframework.boot:spring-boot-testcontainers" }
 testcontainers-kafka-sedr = { module = "org.testcontainers:testcontainers-kafka" }
+
+api-only-transcriberj-restdocs-sedr = { module = "com.arc-e-tect:api-only-transcriberj-restdocs", version.ref = "api-only-transcriberj-restdocs-sedr" }
+api-only-transcriberj-microcks-sedr = { module = "com.arc-e-tect:api-only-transcriberj-microcks", version.ref = "api-only-transcriberj-microcks-sedr" }
+spring-restdocs-webtestclient-sedr = { module = "org.springframework.restdocs:spring-restdocs-webtestclient" }
 
 wiremock-standalone-sedr = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock-sedr" }
 
@@ -50,4 +57,5 @@ pitest-sedr = { id = "info.solidsoft.pitest", version.ref = "pitest-plugin-sedr"
 architecture-validator-sedr = { id = "com.arc-e-tect.architecture-validator", version.ref = "architecture-validator-sedr" }
 spring-boot-sedr = { id = "org.springframework.boot", version.ref = "spring-boot-sedr" }
 api-only-subscriber-sedr = { id = "com.arc-e-tect.api-only-subscriber", version.ref = "api-only-subscriber-sedr" }
+api-only-transcriberj-sedr = { id = "com.arc-e-tect.api-only-transcriberj", version.ref = "api-only-transcriberj-sedr" }
 openapi-generator-sedr = { id = "org.openapi.generator", version.ref = "openapi-generator-sedr" }

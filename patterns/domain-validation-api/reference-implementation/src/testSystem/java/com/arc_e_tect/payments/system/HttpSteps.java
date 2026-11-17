@@ -108,6 +108,14 @@ public class HttpSteps {
                 .build());
     }
 
+    @When("a client sends a request without a body")
+    public void aClientSendsARequestWithoutABody() throws IOException, InterruptedException {
+        send(HttpRequest.newBuilder(uri(VALIDATIONS))
+                .header("Accept", "application/json, application/problem+json")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build());
+    }
+
     @When("a client asks for the validation job {string}")
     public void aClientAsksForTheJob(String validationId) throws IOException, InterruptedException {
         send(HttpRequest.newBuilder(uri(VALIDATIONS + "/" + validationId))
@@ -162,6 +170,12 @@ public class HttpSteps {
     @Then("the answer is a problem of type {string}")
     public void theAnswerIsAProblemOfType(String type) {
         assertEquals(type, JsonPath.read(response.body(), "$.type"));
+    }
+
+    @Then("the problem says what is wrong at {string}")
+    public void theProblemSaysWhatIsWrongAt(String context) {
+        List<String> contexts = JsonPath.read(response.body(), "$.errors[*].context");
+        assertTrue(contexts.contains(context), response.body());
     }
 
     @Then("the problem names the country {string}")
