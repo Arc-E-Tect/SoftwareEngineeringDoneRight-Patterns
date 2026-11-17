@@ -179,6 +179,13 @@ This refines the row on the job resource: the controller calls `GetValidationJob
 
 |2026-11-17
 |The reference implementation includes the starter with `includeBuild '../validation-execution'`, as the dependency `com.arc-e-tect.patterns:validation-execution` without a version.
+
+|2026-11-17
+|The webhook and the Kafka event are the starter's, so that every validation that uses it tells the same way: `ValidationCompleted` is domain model, `ValidationCompletedPublisher` the outbound port, and `adapter.outbound.event` holds the webhook and the Kafka publisher, which the auto-configuration wires.
+`SubmitValidationJobService` publishes to every publisher once the job is stored as it ended, so whoever is told finds the job so; a publisher that fails keeps neither the job nor the other publishers from theirs.
+
+|2026-11-17
+|A job keeps its location, the operation's path followed by its identifier, which the `202` answers and the completion refers to; the controller passes `ValidationExecution.run` how to read a result's outcome (`NameIbanMatchMapper.outcomeOf`), as the starter does not know the contract's result.
 |===
 
 == API
@@ -438,6 +445,13 @@ A repeated submission is answered `202` with the job as it is, pending or not.
 
 |2026-11-17
 |Jobs run on virtual threads; the in-memory store keeps every job for as long as the service runs, which suits the example and not a service that runs for long.
+
+|2026-11-17
+|Publishing to Kafka is off unless `validation.execution.events.kafka.enabled` is `true`, so the service runs without a broker; `spring-kafka` is an optional dependency of the starter, and its topic, `validation.execution.events.kafka.topic`, is the bounded context's, `payments.validation.completed.v1` in the reference implementation.
+The key and the event are sent as text, through a template derived from Spring Boot's producer factory, whatever serializers the application configures; a send that fails is logged.
+
+|2026-11-17
+|The webhook's subscribers are `validation.execution.events.webhook.subscribers`, none by default; each gets one `POST`, which may take `validation.execution.events.webhook.timeout`, 5 seconds by default; a subscriber that answers with an error or cannot be reached is logged and skipped.
 |===
 
 == Testing
@@ -475,6 +489,10 @@ Coverage and mutation testing remain measured on the unit tests alone.
 
 |2026-11-17
 |The system tests share one service, and so one job store: every scenario uses an Idempotency-Key of its own, and reads a job until it is no longer pending, for at most 10 seconds.
+
+|2026-11-17
+|The system tests run Kafka as `apache/kafka-native:4.2.2`, the version of the Kafka clients Spring Boot manages, through Spring Boot's service connection, and create the topic up front as a provisioned topic would be; WireMock plays two webhook subscribers, one of which answers `503`.
+A step waits at most 10 seconds for the webhook or the event about its scenario's job, which it tells apart by the `validationId`.
 |===
 
 == Pattern document

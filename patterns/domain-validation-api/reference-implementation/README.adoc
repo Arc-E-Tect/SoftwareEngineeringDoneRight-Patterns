@@ -29,7 +29,7 @@ The implementation is being built test-first, one slice at a time: so far the ve
 
 == Build and test
 
-Requirements: Java 25, Node 24 with npm, and a GitHub token that can read packages.
+Requirements: Java 25, Node 24 with npm, a GitHub token that can read packages, and Docker for the system tests.
 The Gradle wrapper downloads Gradle itself, and the build provisions the Java toolchain when it is missing.
 
 The Domain Validation API rule pack is published on GitHub Packages, which needs a token even for a public package.
@@ -69,7 +69,8 @@ They carry both quality gates: 100% coverage of the project's own code, and a 10
 |Contract tests: the running service against its API contract.
 
 |`testSystem`
-|System tests: the BDD features, one per API operation, against the running service.
+|System tests: the BDD features, one per API operation and one each for the webhook and the event, against the running service.
+WireMock plays the webhook's subscribers, and Kafka runs in Docker through Testcontainers.
 
 |`testArchitecture`
 |Architecture tests from the https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Gradle[Architecture Validator ↗]: its built-in Hexagonal rules, the Spring rule pack and the Domain Validation API rule pack.
@@ -109,6 +110,17 @@ curl -s -i -X POST http://localhost:8080/payments/v1/validations/name-iban-match
      -d '{"iban": "DE89370400440532013000", "accountHolderName": "Anna Schmidt"}'
 curl -s http://localhost:8080/payments/v1/validations/name-iban-match/<validationId>
 ----
+
+Once a job has run, the service tells so with the contract's `ValidationCompletedEventV1`, which refers to the job.
+It posts it to the subscribers of the `validationCompleted` webhook, none by default, and sends it to the topic `payments.validation.completed.v1` when Kafka is turned on, which it is not by default, so the service runs without a broker.
+With a broker on `localhost:9092` and a subscriber listening on port 9000:
+
+[source,console]
+----
+./gradlew bootRun --args='--validation.execution.events.kafka.enabled=true --spring.kafka.bootstrap-servers=localhost:9092 --validation.execution.events.webhook.subscribers=http://localhost:9000/hooks/validation-completed'
+----
+
+The link:../validation-execution/README.adoc[validation-execution starter →] lists these settings.
 
 == Versioning
 
