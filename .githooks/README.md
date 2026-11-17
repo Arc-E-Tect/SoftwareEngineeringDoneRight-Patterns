@@ -27,10 +27,13 @@ The secret check allows documentation in `SECURITY`, `POLICY`, and `SECRET` file
 
 Checks a feature branch's pull-request state with GitHub CLI and blocks a push when its pull request is already closed or merged.
 
+When the branch changes `api/`, it also runs the API-Only Publisher's `check`, which blocks a push that changes a contract without raising its version. Run `npm --prefix api ci` once first.
+
 ## Dependencies
 
 - Git
 - [GitHub CLI](https://cli.github.com/) for the pull-request state check
+- [Node.js](https://nodejs.org/) when pushing a change to `api/`
 - [actionlint](https://github.com/rhysd/actionlint) when committing a workflow
 
 ## Bypassing hooks
