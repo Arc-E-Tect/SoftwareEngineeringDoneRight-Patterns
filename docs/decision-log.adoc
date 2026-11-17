@@ -43,6 +43,15 @@ Pull requests are squash-merged, so the cycle is visible on the pull-request bra
 
 |2026-11-17
 |The licence stays MIT.
+
+|2026-11-17
+|Every Gradle project has a build workflow, `domain-validation-api-<project>-build.yml`, shaped and hardened like the reference repositories' build workflows: push to any branch except `main` and `maintenance`, filtered by path, building with Java 25.
+
+|2026-11-17
+|Builds calculate the project's next version with semantic-release, using the reference repositories' shared `release/` plugins and reusable workflows and the `SEMANTIC_RELEASE_TOKEN` secret; nothing is tagged, released or published.
+
+|2026-11-17
+|An OWASP dependency-check per project and the weekly NVD scan are added in Phase 5, once the projects have real dependencies; `SECURITY.md` is updated in the same change.
 |===
 
 == Structure and build
@@ -79,6 +88,18 @@ The rules pack in the Library repository follows that repository's `-iff` conven
 
 |2026-11-17
 |Package root `com.arc_e_tect.payments`, group `com.arc-e-tect.patterns`.
+
+|2026-11-17
+|Gradle project names, which are also the artifact names and tag prefixes: `domain-validation-api-reference-implementation` for the service, and `validation-execution` for the starter, which is a reusable component rather than part of one pattern's example.
+
+|2026-11-17
+|The Gradle wrapper pins the distribution's SHA-256 checksum, so a tampered download is refused.
+
+|2026-11-17
+|The `api/` specification library is created in Phase 3, together with its first bundle target.
+
+|2026-11-17
+|Documentation: `patterns/README.adoc` indexes the patterns; each pattern folder has a `README.adoc` that introduces the pattern and links to its document and its reference implementation; every project README links back to the pattern; the root README indexes all projects and carries the disclaimer about the reference implementations.
 |===
 
 == Architecture
@@ -92,16 +113,21 @@ The rules pack in the Library repository follows that repository's `-iff` conven
 
 |2026-11-17
 |Inbound ports carry `UseCase` as a suffix, not a prefix; the pattern document's prefix was an error.
-The terms are inbound and outbound, not driving and driven.
+The terms are inbound and outbound, not driving and driven, everywhere: in the documents, and in package names, class names and comments in the source code.
 
 |2026-11-17
-|Packages follow the Architecture Validator's defaults: `application.port.inbound`, `application.port.outbound`, `adapter.inbound`, `adapter.outbound`.
+|The red-thread code in SoftwareEngineeringDoneRight-Code is the reference for the hexagonal structure.
+Packages per slice: `application.domain.model`, `application.domain.service`, `application.port.inbound` (with `command` and `result`), `application.port.outbound`, `adapter.inbound`, `adapter.outbound` and `configuration`; these are also the Architecture Validator's defaults.
 
 |2026-11-17
 |An inbound port takes a command (`application.port.inbound.command`) and returns a result (`application.port.inbound.result`); inbound adapters never depend on the domain model.
+As in red-thread, a command is a class that checks its input in its constructor, a result is a sealed interface with one record per way the use case can end (for `name-iban-match`: `Checked`, `UnsupportedCountry`, `InvalidChecksum`), and the inbound adapter switches over it.
 
 |2026-11-17
-|The verdict model (`Verdict`, `Outcome`, `Finding`, `RuleCode`, `Severity`) is domain model in `...validation.verdict`; each use case returns its own port result, built from the verdict by the application service.
+|A use case is implemented by a domain service named after it, with the suffix `Service`: `ValidateNameIbanMatchService` implements `ValidateNameIbanMatchUseCase`.
+
+|2026-11-17
+|The verdict model (`Verdict`, `Outcome`, `Finding`, `RuleCode`, `Severity`) is domain model in `...validation.verdict`; each use case returns its own port result, built from the verdict by the domain service.
 
 |2026-11-17
 |Beans are wired by an explicit `@Configuration` class per slice, in `...validation.<slice>.configuration`.
@@ -117,7 +143,8 @@ OpenAPI Generator `documentationProvider=source`.
 |The pattern rules pack lives in the Library repository next to `hexagonal-spring-rules` and stays as close as possible to how that pack is built and configured; deviations are asked first.
 
 |2026-11-17
-|The Architecture Validator's naming conventions stay off; the pattern rules pack enforces the pattern's naming.
+|The Architecture Validator's naming conventions are on (`namingConventionsEnabled = true`): inbound ports end in `UseCase`, domain services in `Service`, and controllers in `Controller`.
+They stayed off only while the pattern document used a `UseCase` prefix.
 |===
 
 == API
@@ -200,6 +227,11 @@ The webhook and the Kafka event share one `ValidationCompletedEventV1` schema, w
 |The 100% coverage gate is measured on unit tests only; the Spring Boot main class and configuration classes are covered by tests, not excluded.
 
 |2026-11-17
+|Mutation testing with PIT (`STRONGER` mutators) on the unit tests, with a 100% mutation-score gate in `check`, because coverage only shows what the tests run, not what they verify.
+A surviving mutant is fixed with a test, or excluded only with the maintainer's explicit approval.
+`failWhenNoMutations` is off only so that the empty skeleton builds.
+
+|2026-11-17
 |BDD with Cucumber-JVM on the JUnit Platform Suite in `testSystem`: Spring Boot on a random port over real HTTP, WireMock receiving webhooks, Kafka in Docker through Testcontainers. One feature per API operation, plus one for the webhook and one for the event.
 
 |2026-11-17
@@ -214,4 +246,7 @@ The webhook and the Kafka event share one `ValidationCompletedEventV1` schema, w
 
 |2026-11-17
 |`domain-validation-api-pattern.adoc` is stored as received (v3) first; every change that these decisions require is then proposed as a diff for approval.
+
+|2026-11-17
+|Seven approved edits bring the pattern document in line with these decisions, one commit each: the example name `name-iban-match`; the `UseCase` suffix; inbound and outbound; commands and sealed results on the inbound port with red-thread's package layout, generated code in each slice's inbound web adapter and a configuration package per slice; the context in the server URL; the `com.arc_e_tect` base package; and the test levels named after the test taxonomy, with features per API operation next to the use-case scenarios.
 |===

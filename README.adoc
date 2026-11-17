@@ -1,0 +1,89 @@
+= Software Engineering Done Right: Patterns
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+:icons: font
+:source-highlighter: rouge
+
+image:https://img.shields.io/badge/License-MIT-blue[MIT,link=LICENSE]
+
+[NOTE]
+.Where the links in this document go
+====
+Every link ends with a marker saying where it leads, so you can tell before you follow it:
+
+[horizontal]
+`↗`:: An *external* site, outside this repository.
+`→`:: *Another file* in this repository.
+`§`:: *A section of this same file.*
+====
+
+[WARNING]
+.Reference implementations are not production software
+====
+The reference implementations in this repository show how a pattern is built, and nothing more.
+They deliberately omit security: there is no authentication, no authorisation, no transport security, no secrets handling and no hardening of the runtime.
+Do not use them as-is in production.
+
+This applies to the software the reference implementations produce, not to this repository: the repository itself, its build and its pipelines are secured, as link:SECURITY.md[SECURITY.md →] describes.
+====
+
+This repository holds the design patterns published by Arc-E-Tect.
+Every pattern has a document that describes it, and a reference implementation that shows it working, test-first and verified in the build.
+
+[#patterns]
+== Patterns
+
+[cols="2,5",options="header"]
+|===
+|Pattern |What it is
+
+|link:patterns/domain-validation-api/README.adoc[Domain Validation API →]
+|Exposes business-rule validations from the bounded context that owns the rules, as one typed operation per validation, with a shared result envelope, a three-valued outcome and asynchronous execution.
+|===
+
+link:patterns/README.adoc[The patterns index →] lists every pattern with its document and its reference implementation.
+
+[#projects]
+== Projects
+
+Every project builds, tests and runs on its own.
+
+[cols="2,2,4",options="header"]
+|===
+|Project |Pattern |What it is
+
+|link:patterns/domain-validation-api/reference-implementation/README.adoc[`domain-validation-api-reference-implementation` →]
+|Domain Validation API
+|The payments service with the `name-iban-match` validation, in Spring Boot, following Hexagonal Architecture.
+
+|link:patterns/domain-validation-api/validation-execution/README.adoc[`validation-execution` →]
+|Domain Validation API
+|The reusable asynchronous execution of validations, as a Spring Boot starter.
+|===
+
+[#development]
+== Development
+
+Install the repository's Git hooks once after cloning:
+
+[source,console]
+----
+./scripts/setup-hooks.sh
+----
+
+Each project's README says how to build, test and run it.
+The builds need Java 25; each project brings its own Gradle wrapper.
+
+link:docs/decision-log.adoc[The decision log →] records every decision taken for this repository, with its reason.
+
+[#security]
+== Security
+
+Report vulnerabilities as link:SECURITY.md[SECURITY.md →] describes, never in a public issue.
+link:ZERO_CREDENTIALS_POLICY.md[The zero credentials policy →] applies to every file in the repository.
+
+[#license]
+== License
+
+MIT; see link:LICENSE[LICENSE →].
