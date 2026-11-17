@@ -111,6 +111,15 @@ class PayeeVerificationSchemeClientTest {
         }
 
         @Test
+        @DisplayName("answers unavailable when the scheme does not answer within the configured timeout")
+        void answersUnavailableAfterTheConfiguredTimeout() {
+            PayeeVerificationSchemeProperties properties = new PayeeVerificationSchemeProperties(TIMEOUT, List.of());
+
+            assertEquals(new RegisteredAccountHolder.Unavailable(),
+                    new PayeeVerificationSchemeClient(hanging, properties).accountHolderOf(IBAN));
+        }
+
+        @Test
         @DisplayName("answers unavailable when it is interrupted while it waits")
         void answersUnavailableWhenInterrupted() {
             Thread.currentThread().interrupt();
@@ -146,7 +155,7 @@ class PayeeVerificationSchemeClientTest {
         @Test
         @DisplayName("without a timeout")
         void withoutATimeout() {
-            assertThrows(NullPointerException.class, () -> new PayeeVerificationSchemeClient(hanging, null));
+            assertThrows(NullPointerException.class, () -> new PayeeVerificationSchemeClient(hanging, (Duration) null));
         }
 
         @Test

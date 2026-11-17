@@ -1,0 +1,16 @@
+# The accounts the system tests rely on; each feature's Background states them.
+payments:
+  validation:
+    name-iban-match:
+      supported-countries: [NL, DE]
+      scheme:
+        timeout: 300ms
+        accounts:
+          - iban: NL91ABNA0417164300
+            registered-name: Jan de Vries
+          - iban: DE89370400440532013000
+            registered-name: Anna Schmidt
+            response-time: 2s
+          - iban: NL20INGB0001234567
+            registered-name: Anna Bakker
+            available: false
