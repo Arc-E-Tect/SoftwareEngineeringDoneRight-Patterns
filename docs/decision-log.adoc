@@ -368,7 +368,8 @@ Close and no match give finding `NAME_IBAN_MISMATCH` (error, pointer `/accountHo
 |One outbound port, `AccountHolderRegistry`, with one simulated adapter, `PayeeVerificationSchemeClient`; no own-bank repository.
 
 |2026-11-17
-|The simulation is deterministic: a configured table maps IBAN to registered name; per IBAN an account can be slow (configured delay) or unavailable. A port timeout turns slow or unavailable into `indeterminate`.
+|The simulation is deterministic: a configured table maps IBAN to registered name; per IBAN an account can be slow (configured delay) or unavailable.
+A port timeout turns slow or unavailable into `indeterminate`.
 
 |2026-11-17
 |A well-formed IBAN that the scheme does not know gives `invalid` with match `none`.
@@ -481,7 +482,8 @@ A surviving mutant is fixed with a test, or excluded only with the maintainer's 
 `failWhenNoMutations` is off only so that the empty skeleton builds.
 
 |2026-11-17
-|BDD with Cucumber-JVM on the JUnit Platform Suite in `testSystem`: Spring Boot on a random port over real HTTP, WireMock receiving webhooks, Kafka in Docker through Testcontainers. One feature per API operation, plus one for the webhook and one for the event.
+|BDD with Cucumber-JVM on the JUnit Platform Suite in `testSystem`: Spring Boot on a random port over real HTTP, WireMock receiving webhooks, Kafka in Docker through Testcontainers.
+One feature per API operation, plus one for the webhook and one for the event.
 
 |2026-11-17
 |Contract tests: HTTP through TranscriberJ's REST Docs emitter, the Kafka event through its Microcks emitter, both in `testContract`; Docker is required.
