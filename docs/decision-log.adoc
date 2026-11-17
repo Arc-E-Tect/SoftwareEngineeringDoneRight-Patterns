@@ -372,6 +372,13 @@ Names are normalised with `java.text.Normalizer`, so `java.text..` is added to t
 
 |2026-11-17
 |The service refuses a failing checksum first and an unsupported country second, both before it asks the register: a mistyped IBAN is the more likely cause, and the payer can correct it.
+
+|2026-11-17
+|The outbound adapter is `adapter.outbound.scheme`: `PayeeVerificationSchemeClient` implements `AccountHolderRegistry` over a `PayeeVerificationScheme`, which answers a registered name by IBAN, or none, and fails when it cannot answer.
+The client asks the scheme on a virtual thread and waits at most its timeout; when the scheme fails or is too slow it answers `Unavailable` and interrupts the call.
+
+|2026-11-17
+|`SimulatedPayeeVerificationScheme` takes an account's response time for real, so that a slow account shows the timeout synchronously and gives the asynchronous execution something to wait for; an unavailable account fails after its response time, and an IBAN that is not in the table has no name at once.
 |===
 
 == Testing
@@ -396,6 +403,10 @@ A surviving mutant is fixed with a test, or excluded only with the maintainer's 
 
 |2026-11-17
 |Contract tests: HTTP through TranscriberJ's REST Docs emitter, the Kafka event through its Microcks emitter, both in `testContract`; Docker is required.
+
+|2026-11-17
+|`testComponent` runs each use case as one component with plain JUnit: for `name-iban-match` the domain service, the rule, the scheme client and the simulated scheme, from an exact match to an indeterminate verdict.
+Coverage and mutation testing remain measured on the unit tests alone.
 |===
 
 == Pattern document

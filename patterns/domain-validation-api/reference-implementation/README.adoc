@@ -24,7 +24,7 @@ It is a Spring Boot service that follows Hexagonal Architecture, with the valida
 
 [NOTE]
 ====
-The implementation is being built test-first, one slice at a time: so far the verdict model, the `name-iban-match` domain, and its use case with the domain service that implements it.
+The implementation is being built test-first, one slice at a time: so far the verdict model, the `name-iban-match` domain, its use case with the domain service that implements it, and the client of a simulated payee verification scheme.
 ====
 
 == Build and test
