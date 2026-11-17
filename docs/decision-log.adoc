@@ -145,6 +145,15 @@ OpenAPI Generator `documentationProvider=source`.
 |2026-11-17
 |The Architecture Validator's naming conventions are on (`namingConventionsEnabled = true`): inbound ports end in `UseCase`, domain services in `Service`, and controllers in `Controller`.
 They stayed off only while the pattern document used a `UseCase` prefix.
+
+|2026-11-17
+|A command is a record, so it is immutable and equal by value; it refuses what the domain would refuse by building the domain's `Iban` and `PayeeClaim`, so whichever adapter drives the use case, the use case returns a result and never throws on its input.
+
+|2026-11-17
+|A port result owns its own types for the outcome, the match, the severity, the findings and the details, which the domain service maps from the verdict by name; `Checked` has no details when no verdict was reached, as in the contract.
+
+|2026-11-17
+|The outbound port `AccountHolderRegistry` (`accountHolderOf(Iban)`, answering a `RegisteredAccountHolder`) comes with the use case in slice 2, because the domain service needs it; its simulated adapter follows in slice 3.
 |===
 
 == API
@@ -286,6 +295,21 @@ Like the Spring pack's build, the pack's build has no coverage or mutation gate.
 |2026-11-17
 |The pack is published to the local Maven repository as `1.0.0-PRERELEASE` for Phase 5.
 The reference implementation depends on it, so its pull request is not pushed until the pack is published, as the brief requires.
+
+|2026-11-17
+|Maven Central refused the first release: the organisation had reached its monthly release limit, which resets on 2026-12-01, and an increase is requested.
+Until the pack moves to Maven Central, it is published on GitHub Packages, in the Library repository.
+
+|2026-11-17
+|The pack is released as `0.0.1`: below `1.0.0` a breaking change releases a minor version (the Library's `zero-major-analyzer`), and the pack becomes `1.0.0` when it moves to Maven Central.
+The `1.0.0` that GitHub Packages had briefly received was deleted, with its release and tag; a signed seed tag `domain-validation-rules-v0.0.0` makes semantic-release start below `1.0.0`.
+
+|2026-11-17
+|The reference implementation resolves the pack from GitHub Packages only, through `exclusiveContent`, because GitHub Packages needs a token even for a public package.
+In CI the workflow passes the `GH_READ_PACKAGE_TOKEN` secret (a classic token with `read:packages` only, since a secret cannot start with `GITHUB`) with `GITHUB_ACTOR`; locally the build reads `gpr.user` and `gpr.key` from `~/.gradle/gradle.properties`; it never mixes the two pairs.
+
+|2026-11-17
+|The projects in this repository use the same zero-major rule; each needs a `<project>-v0.0.0` seed tag before its first release, or semantic-release starts at `1.0.0`.
 |===
 
 == Behaviour of the example
@@ -342,6 +366,12 @@ An unknown IBAN gives the same `NAME_IBAN_MISMATCH` finding as no match.
 |Jaro-Winkler is implemented in the domain, with the standard definition (a matching window of half the longer length minus one, a prefix of at most 4 and a scale of 0.1); the threshold 0.90 is inclusive, shown by `abcd` and `abcdxyzq`, whose similarity is 0.9 exactly.
 Names are normalised with `java.text.Normalizer`, so `java.text..` is added to the Architecture Validator's `domainAllowedPackages`.
 
+
+|2026-11-17
+|The countries the payee verification scheme supports are a configured domain value, `SupportedCountries`, given to `ValidateNameIbanMatchService`; the configuration sets the simulated scheme's coverage next to its table of accounts.
+
+|2026-11-17
+|The service refuses a failing checksum first and an unsupported country second, both before it asks the register: a mistyped IBAN is the more likely cause, and the payer can correct it.
 |===
 
 == Testing

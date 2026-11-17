@@ -24,20 +24,31 @@ It is a Spring Boot service that follows Hexagonal Architecture, with the valida
 
 [NOTE]
 ====
-This project is a skeleton: its build, test suites and coverage gate are in place, and the implementation follows test-first in the next phases.
+The implementation is being built test-first, one slice at a time: so far the verdict model, the `name-iban-match` domain, and its use case with the domain service that implements it.
 ====
 
 == Build and test
 
-Requirements: Java 25.
+Requirements: Java 25, and a GitHub token that can read packages.
 The Gradle wrapper downloads Gradle itself, and the build provisions the Java toolchain when it is missing.
+
+The Domain Validation API rule pack is published on GitHub Packages, which needs a token even for a public package.
+Add your GitHub user name and a classic token with the `read:packages` scope, and nothing else, to `~/.gradle/gradle.properties`, never to this repository:
+
+[source,properties]
+----
+gpr.user=<your GitHub user name>
+gpr.key=<the token>
+----
+
+In CI, the workflow passes the `GH_READ_PACKAGE_TOKEN` secret instead.
 
 [source,console]
 ----
 ./gradlew build
 ----
 
-`build` runs every test suite, the coverage gate and the mutation gate:
+`build` runs every test suite, the coverage gate, the mutation gate and the architecture rules:
 
 [cols="1,3",options="header"]
 |===
@@ -55,6 +66,10 @@ They carry both quality gates: 100% coverage of the project's own code, and a 10
 
 |`testSystem`
 |System tests: the BDD features, one per API operation, against the running service.
+
+|`testArchitecture`
+|Architecture tests from the https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Gradle[Architecture Validator ↗]: its built-in Hexagonal rules, the Spring rule pack and the Domain Validation API rule pack.
+Their reports are in `build/reports/architecture-validator`.
 |===
 
 == Run
