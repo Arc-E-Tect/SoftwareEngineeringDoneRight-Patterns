@@ -3,6 +3,8 @@ Feature: Validate a name against an IBAN
   holder of an account matches the name the account is registered to, before they pay.
   A verdict is answered with 200: valid, invalid or indeterminate. A request the domain cannot
   process is answered with 422, and a request that breaks the contract with 400.
+  With Prefer: respond-async and an Idempotency-Key, the validation runs as a job instead, which
+  is answered with 202 and read from the job resource.
 
   Background:
     Given the payee verification scheme knows these accounts:
@@ -77,3 +79,39 @@ Feature: Validate a name against an IBAN
       | {"iban": "NL91ABNA0417164300", "accountHolderName": ""}                                                 | the name is empty            |
       | {"iban": "NL91ABNA0417164300"}                                                                          | the name is missing          |
       | {"iban": "NL91ABNA0417164300", "accountHolderName": "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"} | the name is too long |
+
+  Scenario: The payer prefers an asynchronous answer
+    When a payer validates the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer with Idempotency-Key "0b4f8a2e-1c3d-4e5f-8a9b-0c1d2e3f4a5b"
+    Then the answer is 202
+    And the answer is a pending "name-iban-match" job
+    And the answer says where the job is
+    And the answer says when to read the job
+    And the answer is not stored
+    When the client reads the job until it has run
+    Then the job is "completed"
+    And the job's result has outcome "valid"
+
+  Scenario: The same request with the same Idempotency-Key gets the same job
+    Given a payer validated the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer with Idempotency-Key "1c5a9b3f-2d4e-4f6a-9b0c-1d2e3f4a5b6c"
+    When a payer validates the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer with Idempotency-Key "1c5a9b3f-2d4e-4f6a-9b0c-1d2e3f4a5b6c"
+    Then the answer is 202
+    And it is the same job
+
+  Scenario: Another request with the same Idempotency-Key is refused
+    Given a payer validated the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer with Idempotency-Key "2d6b0c4a-3e5f-4a7b-8c1d-2e3f4a5b6c7d"
+    When a payer validates the name "Piet Jansen" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer with Idempotency-Key "2d6b0c4a-3e5f-4a7b-8c1d-2e3f4a5b6c7d"
+    Then the answer is 422
+    And the answer is a problem of type "https://api.example.com/problems/idempotency-key-reused"
+    And the answer is not stored
+
+  Scenario: An asynchronous answer needs an Idempotency-Key, so that a retry does not start a second job
+    When a payer validates the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer without an Idempotency-Key
+    Then the answer is 400
+    And the answer is a problem of type "https://api.example.com/problems/invalid-request"
+
+  Scenario: A request the domain refuses fails its job
+    When a payer validates the name "Maria Souza" against the IBAN "BR1800360305000010009795493C1", preferring an asynchronous answer with Idempotency-Key "3e7c1d5b-4f6a-4b8c-9d2e-3f4a5b6c7d8e"
+    Then the answer is 202
+    When the client reads the job until it has run
+    Then the job is "failed"
+    And the job's problem is of type "https://api.example.com/payments/problems/unsupported-country"

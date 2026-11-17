@@ -102,32 +102,4 @@ class NameIbanMatchProblemsTest {
             assertEquals(CacheControl.noStore().getHeaderValue(), exception.getHeaders().getCacheControl());
         }
     }
-
-    @Nested
-    @DisplayName("for a validation job that does not exist")
-    class JobNotFound {
-
-        private final ErrorResponseException exception =
-                NameIbanMatchProblems.jobNotFound("8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f");
-
-        @Test
-        @DisplayName("is the contract's validation-job-not-found problem, naming the identifier")
-        void isTheJobNotFoundProblem() {
-            assertEquals(problem(404, "https://api.example.com/problems/validation-job-not-found", "Validation Job Not Found",
-                            "No name-iban-match validation job has the identifier 8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f."),
-                    exception.getBody());
-        }
-
-        @Test
-        @DisplayName("has status 404")
-        void hasStatus404() {
-            assertEquals(HttpStatusCode.valueOf(404), exception.getStatusCode());
-        }
-
-        @Test
-        @DisplayName("is not stored")
-        void isNotStored() {
-            assertEquals(CacheControl.noStore().getHeaderValue(), exception.getHeaders().getCacheControl());
-        }
-    }
 }

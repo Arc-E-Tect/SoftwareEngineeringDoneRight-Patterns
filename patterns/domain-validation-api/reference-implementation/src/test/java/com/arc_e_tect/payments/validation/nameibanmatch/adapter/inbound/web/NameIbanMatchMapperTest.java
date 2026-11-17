@@ -4,7 +4,10 @@ import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.
 import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.NameIbanMatchDetailsV1;
 import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.NameIbanMatchRequestV1;
 import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.NameIbanMatchResultV1;
+import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.NameIbanMatchJobV1;
 import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.OutcomeV1;
+import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.ProblemDetailsV1;
+import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.ValidationJobStatusV1;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.inbound.command.ValidateNameIbanMatchCommand;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.inbound.result.ValidateNameIbanMatchResult.Checked;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.inbound.result.ValidateNameIbanMatchResult.Details;
@@ -17,7 +20,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import com.arc_e_tect.validation.async.application.port.inbound.result.ValidationJobView;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 
@@ -125,6 +130,51 @@ class NameIbanMatchMapperTest {
 
             assertEquals(severity.name(),
                     mapper.toResult(checked(Outcome.VALID, Optional.empty(), finding)).getFindings().getFirst().getSeverity().name());
+        }
+    }
+
+    @Nested
+    @DisplayName("turns a validation job into the contract's job")
+    class TurnsAJobIntoTheContractsJob {
+
+        private static final String ID = "8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f";
+
+        private static ValidationJobView job(ValidationJobView.Status status, Optional<Object> result, Optional<ValidationJobView.Problem> problem) {
+            return new ValidationJobView(ID, "name-iban-match", status, result, problem);
+        }
+
+        @Test
+        @DisplayName("of the name-iban-match validation, without a result or a problem while it is pending")
+        void whilePending() {
+            assertEquals(new NameIbanMatchJobV1(ID, NameIbanMatchJobV1.ValidationEnum.NAME_IBAN_MATCH, ValidationJobStatusV1.PENDING),
+                    mapper.toJob(job(ValidationJobView.Status.PENDING, Optional.empty(), Optional.empty())));
+        }
+
+        @ParameterizedTest(name = "{0}")
+        @EnumSource(ValidationJobView.Status.class)
+        @DisplayName("with the same status")
+        void withTheSameStatus(ValidationJobView.Status status) {
+            assertEquals(status.name(), mapper.toJob(job(status, Optional.empty(), Optional.empty())).getStatus().name());
+        }
+
+        @Test
+        @DisplayName("with the result of a completed job")
+        void withTheResult() {
+            NameIbanMatchResultV1 result = mapper.toResult(checked(Outcome.VALID, Optional.empty()));
+
+            assertEquals(result, mapper.toJob(job(ValidationJobView.Status.COMPLETED, Optional.of(result), Optional.empty())).getResult());
+        }
+
+        @Test
+        @DisplayName("with the problem of a failed job")
+        void withTheProblem() {
+            URI type = URI.create("https://api.example.com/problems/internal-server-error");
+            ValidationJobView.Problem problem = new ValidationJobView.Problem(type, "Internal Server Error", 500,
+                    "An unexpected error occurred while running the validation.");
+
+            assertEquals(new ProblemDetailsV1().type(type).title("Internal Server Error").status(500)
+                            .detail("An unexpected error occurred while running the validation."),
+                    mapper.toJob(job(ValidationJobView.Status.FAILED, Optional.empty(), Optional.of(problem))).getProblem());
         }
     }
 }
