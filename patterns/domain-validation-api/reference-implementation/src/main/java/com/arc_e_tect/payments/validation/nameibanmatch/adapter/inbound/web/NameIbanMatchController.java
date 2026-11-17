@@ -18,7 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>It maps the request to the use case's command, and each way the use case can end to the
  * contract's answer: a verdict to its result, a request the domain refuses to its problem. Whether
  * the validation is answered at once or runs as a job, and everything about the job, is the
- * asynchronous execution's: the controller hands it the work, and maps the job to the contract's.
+ * asynchronous execution's: the controller hands it the work and how to read a result's outcome, and
+ * maps the job to the contract's.
  */
 @RestController
 public class NameIbanMatchController implements NameIbanMatchApi {
@@ -46,7 +47,8 @@ public class NameIbanMatchController implements NameIbanMatchApi {
                             throw NameIbanMatchProblems.unsupportedCountry(refused.countryCode());
                     case ValidateNameIbanMatchResult.InvalidChecksum refused ->
                             throw NameIbanMatchProblems.invalidChecksum();
-                });
+                },
+                mapper::outcomeOf);
     }
 
     @Override
