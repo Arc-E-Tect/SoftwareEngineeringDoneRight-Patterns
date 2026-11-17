@@ -5,6 +5,7 @@ import com.arc_e_tect.validation.async.application.port.inbound.SubmitValidation
 import com.arc_e_tect.validation.async.application.port.inbound.command.GetValidationJobCommand;
 import com.arc_e_tect.validation.async.application.port.inbound.command.JobOutcome;
 import com.arc_e_tect.validation.async.application.port.inbound.command.SubmitValidationJobCommand;
+import com.arc_e_tect.validation.async.application.port.inbound.command.ValidationOutcome;
 import com.arc_e_tect.validation.async.application.port.inbound.result.SubmitValidationJobResult;
 import com.arc_e_tect.validation.async.application.port.inbound.result.ValidationJobView;
 import org.springframework.http.CacheControl;
@@ -56,15 +57,19 @@ public class ValidationExecution {
      * @param idempotencyKey the request's {@code Idempotency-Key} header, if any
      * @param request        what the validation runs on, with value equality: the use case's command
      * @param validate       the validation: its result, or an {@link ErrorResponseException} with the problem
+     * @param outcome        the verdict a result holds, which a job's completion is published with
      */
-    public <R> ResponseEntity<R> run(String validation, String prefer, String idempotencyKey, Object request, Supplier<R> validate) {
+    public <R> ResponseEntity<R> run(String validation, String prefer, String idempotencyKey, Object request, Supplier<R> validate,
+                                     Function<? super R, ValidationOutcome> outcome) {
         if (!prefersAnAsynchronousAnswer(prefer)) {
             return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(validate.get());
         }
         if (idempotencyKey == null) {
             throw problems.missingIdempotencyKey();
         }
-        return switch (submit.submit(new SubmitValidationJobCommand(validation, idempotencyKey, request, () -> outcome(validate)))) {
+        SubmitValidationJobCommand job = new SubmitValidationJobCommand(validation, idempotencyKey, request, operationPath(),
+                () -> ended(validate, outcome));
+        return switch (submit.submit(job)) {
             case SubmitValidationJobResult.Accepted accepted -> accepted(accepted.job());
             case SubmitValidationJobResult.IdempotencyKeyReused reused -> throw problems.idempotencyKeyReused(reused.idempotencyKey());
         };
@@ -88,9 +93,10 @@ public class ValidationExecution {
                 .anyMatch(RESPOND_ASYNC::equals);
     }
 
-    private static JobOutcome outcome(Supplier<?> validate) {
+    private static <R> JobOutcome ended(Supplier<R> validate, Function<? super R, ValidationOutcome> outcome) {
         try {
-            return new JobOutcome.Completed(validate.get());
+            R result = validate.get();
+            return new JobOutcome.Completed(result, outcome.apply(result));
         } catch (ErrorResponseException refused) {
             ProblemDetail problem = refused.getBody();
             return new JobOutcome.Failed(problem.getType(), problem.getTitle(), problem.getStatus(), problem.getDetail());
@@ -104,16 +110,15 @@ public class ValidationExecution {
     @SuppressWarnings("unchecked")
     private <R> ResponseEntity<R> accepted(ValidationJobView job) {
         ResponseEntity<?> response = ResponseEntity.accepted()
-                .location(location(job))
+                .location(URI.create(job.location()))
                 .header(HttpHeaders.RETRY_AFTER, retryAfter)
                 .cacheControl(CacheControl.noStore())
                 .body(new AcceptedValidationJob(job.validationId(), job.validation(), job.status().name().toLowerCase(Locale.ROOT)));
         return (ResponseEntity<R>) response;
     }
 
-    /** The job resource is the validation's operation path with the job's identifier: the request's path, then the identifier. */
-    private static URI location(ValidationJobView job) {
-        String path = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getRequestURI();
-        return URI.create(path + "/" + job.validationId());
+    /** The path of the validation's operation is the request's; its job resources are below it. */
+    private static String operationPath() {
+        return ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest().getRequestURI();
     }
 }

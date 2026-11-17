@@ -10,7 +10,7 @@ final class ValidationJobViews {
     }
 
     static ValidationJobView of(ValidationJob job) {
-        return new ValidationJobView(job.validationId(), job.validation(),
+        return new ValidationJobView(job.validationId(), job.validation(), job.location(),
                 ValidationJobView.Status.valueOf(job.status().name()),
                 job.result(),
                 job.problem().map(problem -> new ValidationJobView.Problem(problem.type(), problem.title(), problem.status(), problem.detail())));

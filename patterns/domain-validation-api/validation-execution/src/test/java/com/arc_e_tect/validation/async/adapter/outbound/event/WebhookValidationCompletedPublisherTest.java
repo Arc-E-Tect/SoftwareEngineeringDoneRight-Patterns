@@ -5,8 +5,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.test.json.JsonCompareMode;
+import org.springframework.mock.http.client.MockClientHttpRequest;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.test.web.client.RequestMatcher;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -16,10 +17,10 @@ import java.util.List;
 
 import static com.arc_e_tect.validation.async.adapter.outbound.event.ValidationCompletedMessageTest.COMPLETED;
 import static com.arc_e_tect.validation.async.adapter.outbound.event.ValidationCompletedMessageTest.COMPLETED_JSON;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
@@ -38,11 +39,16 @@ class WebhookValidationCompletedPublisherTest {
         return new WebhookValidationCompletedPublisher(client.build(), List.of(subscribed), json);
     }
 
+    /** Without Hamcrest, which MockRestRequestMatchers.requestTo and content().string are overloaded with. */
+    private static RequestMatcher requestTo(URI subscriber) {
+        return request -> assertEquals(subscriber, request.getURI());
+    }
+
     private void expectDelivery(URI subscriber) {
         subscribers.expect(requestTo(subscriber))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(content().json(COMPLETED_JSON, JsonCompareMode.STRICT))
+                .andExpect(request -> assertEquals(COMPLETED_JSON, ((MockClientHttpRequest) request).getBodyAsString()))
                 .andRespond(withNoContent());
     }
 

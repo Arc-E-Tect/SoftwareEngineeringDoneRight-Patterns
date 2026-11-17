@@ -7,9 +7,10 @@ import java.util.UUID;
 /**
  * A validation run asynchronously: pending until it has run, then completed with the validation's
  * result, or failed with a problem. It keeps the idempotency key it was submitted with, and the
- * request, so that a submission with the same key can be told apart from a different one.
+ * request, so that a submission with the same key can be told apart from a different one, and its
+ * location: the path of its job resource.
  */
-public record ValidationJob(String validationId, String validation, String idempotencyKey, Object request,
+public record ValidationJob(String validationId, String validation, String idempotencyKey, Object request, String location,
                             Status status, Optional<Object> result, Optional<JobProblem> problem) {
 
     public enum Status { PENDING, COMPLETED, FAILED }
@@ -19,6 +20,7 @@ public record ValidationJob(String validationId, String validation, String idemp
         Objects.requireNonNull(validation, "validation");
         Objects.requireNonNull(idempotencyKey, "idempotencyKey");
         Objects.requireNonNull(request, "request");
+        Objects.requireNonNull(location, "location");
         Objects.requireNonNull(status, "status");
         Objects.requireNonNull(result, "result");
         Objects.requireNonNull(problem, "problem");
@@ -30,9 +32,15 @@ public record ValidationJob(String validationId, String validation, String idemp
         }
     }
 
-    /** A new job, with an identifier of its own, which has not run yet. */
-    public static ValidationJob pending(String validation, String idempotencyKey, Object request) {
-        return new ValidationJob(UUID.randomUUID().toString(), validation, idempotencyKey, request,
+    /**
+     * A new job, with an identifier of its own, which has not run yet.
+     *
+     * @param operationPath the path of the validation's operation; the job resource is that path followed by the job's identifier
+     */
+    public static ValidationJob pending(String validation, String idempotencyKey, Object request, String operationPath) {
+        Objects.requireNonNull(operationPath, "operationPath");
+        String validationId = UUID.randomUUID().toString();
+        return new ValidationJob(validationId, validation, idempotencyKey, request, operationPath + "/" + validationId,
                 Status.PENDING, Optional.empty(), Optional.empty());
     }
 
@@ -48,6 +56,6 @@ public record ValidationJob(String validationId, String validation, String idemp
         if (status != Status.PENDING) {
             throw new IllegalStateException("A job runs once; this one is " + status);
         }
-        return new ValidationJob(validationId, validation, idempotencyKey, request, ended, result, problem);
+        return new ValidationJob(validationId, validation, idempotencyKey, request, location, ended, result, problem);
     }
 }
