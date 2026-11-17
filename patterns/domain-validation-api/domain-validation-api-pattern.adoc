@@ -464,6 +464,7 @@ In the payments service, that looks like this:
 [source,text]
 ----
 com.arc_e_tect.payments
+├── PaymentsApplication                     # the Spring Boot application of the bounded context
 ├── ...                                     # the rest of the payments bounded context
 └── validation
     ├── verdict                             # Verdict, Outcome, Finding, RuleCode, Severity
@@ -479,17 +480,23 @@ com.arc_e_tect.payments
     │   │       └── outbound                # AccountHolderRegistry
     │   ├── adapter
     │   │   ├── inbound
-    │   │   │   └── web                     # NameIbanMatchController, NameIbanMatchMapper
+    │   │   │   └── web                     # NameIbanMatchController, NameIbanMatchMapper, NameIbanMatchProblems,
+    │   │   │       │                       # ContractProblemHandler
     │   │   │       └── api                 # generated OpenAPI interface and models (build output)
     │   │   └── outbound
-    │   │       └── scheme                  # PayeeVerificationSchemeClient
-    │   └── configuration                   # NameIbanMatchConfiguration
+    │   │       └── scheme                  # PayeeVerificationSchemeClient, SimulatedPayeeVerificationScheme
+    │   └── configuration                   # NameIbanMatchConfiguration, NameIbanMatchProperties
     └── ...                                 # one slice per validation
 ----
 
 Each validation is a vertical slice with its own domain, ports, adapters and configuration.
 Even the code generated from the contract belongs to the slice: it is the inbound web adapter's code, generated into that adapter's `api` package, so every slice has its own copy of the envelope types and no slice depends on another's.
 Adding a validation adds a slice; existing slices are not touched.
+
+One class serves more than its slice.
+`ContractProblemHandler` answers a request that breaks the contract with the shared invalid-request problem, and an unexpected failure with the internal-server-error problem, for the whole service: a request without a body is refused before a controller is chosen, so the handler cannot be scoped to one.
+The reference implementation has one slice, so the handler lives there.
+With a second slice it moves out of the slices, into the bounded context's own `validation.adapter.inbound.web` package, so that no slice depends on another's.
 
 === Controller and use case
 
@@ -679,8 +686,10 @@ They are therefore provided as a reusable technical component, such as a Spring 
 Idempotency of submission is enforced here, so it holds no matter which adapter submits the job.
 `GetValidationJobUseCase` finds a job, for the job resource.
 * *Job resource:* each validation's contract declares `GET /{context}/v1/validations/{validation-name}/{validation-id}`, with a job schema that types the validation's own result, so it is generated into that validation's interface.
-The validation's controller implements it by calling `GetValidationJobUseCase` and mapping the job to the generated type; everything but that mapping is the component's.
-* *Outbound port:* `ValidationJobStore`, for which the bounded context supplies or configures the persistence adapter.
+The validation's controller implements it by calling `ValidationExecution.job` with its mapping from the job to the generated type; finding the job through `GetValidationJobUseCase`, `404`, `Retry-After` and `Cache-Control` are the component's.
+* *Outbound ports:* `ValidationJobStore`, with an in-memory adapter unless the bounded context supplies its own persistence adapter; and `ValidationCompletedPublisher`, which tells others that a job has run.
+* *Outbound adapters for completion:* a webhook adapter posts `ValidationCompleted` to the subscribers the bounded context configures, and a Kafka adapter publishes it to the bounded context's topic, keyed by the job's identifier, when the bounded context turns it on.
+Both are best effort: a subscriber or a send that fails is logged, and the job is not affected.
 
 Sharing this component does not reintroduce coupling between bounded contexts.
 It is infrastructure, like a web framework: it knows nothing about any domain, and each bounded context chooses when to upgrade it.
