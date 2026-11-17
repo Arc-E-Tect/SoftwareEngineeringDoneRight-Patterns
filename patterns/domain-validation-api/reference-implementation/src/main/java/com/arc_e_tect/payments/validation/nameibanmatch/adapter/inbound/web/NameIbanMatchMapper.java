@@ -10,6 +10,7 @@ import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.
 import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.ValidationJobStatusV1;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.inbound.command.ValidateNameIbanMatchCommand;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.inbound.result.ValidateNameIbanMatchResult;
+import com.arc_e_tect.validation.async.application.port.inbound.command.ValidationOutcome;
 import com.arc_e_tect.validation.async.application.port.inbound.result.ValidationJobView;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +33,11 @@ public class NameIbanMatchMapper {
         result.setFindings(checked.findings().stream().map(NameIbanMatchMapper::finding).toList());
         checked.details().map(NameIbanMatchMapper::details).ifPresent(result::setDetails);
         return result;
+    }
+
+    /** The verdict of the contract's result, which the completion of a job is published with. */
+    public ValidationOutcome outcomeOf(NameIbanMatchResultV1 result) {
+        return ValidationOutcome.valueOf(result.getOutcome().name());
     }
 
     /** The job's result is what this controller's validation answered: the contract's result. */

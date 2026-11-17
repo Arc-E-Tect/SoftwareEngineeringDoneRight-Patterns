@@ -19,9 +19,11 @@ repositories {
 }
 
 // The Spring Boot BOM as a Gradle platform, exported to the projects that use the starter.
+// Kafka is optional: the starter publishes to it only when the bounded context has Kafka and turns it on.
 dependencies {
     api platform(libs.spring.boot.dependencies.sedr)
     api libs.spring.boot.starter.webmvc.sedr
+    compileOnly libs.spring.kafka.sedr
 }
 
 testing {
@@ -32,6 +34,10 @@ testing {
             dependencies {
                 // A request for ValidationExecution to answer, without a Spring context.
                 implementation libs.spring.test.sedr
+                // The Kafka publisher and its auto-configuration, which the starter only compiles against,
+                // and a mock of the KafkaOperations the publisher sends with.
+                implementation libs.spring.kafka.sedr
+                implementation libs.mockito.core.sedr
             }
         }
 
@@ -52,6 +58,35 @@ testing {
 
 tasks.named('check') {
     dependsOn testing.suites.testComponent
+}
+
+// Mockito instruments classes with its own agent, attached at start-up rather than at run time,
+// which the JDK warns about and will refuse.
+configurations {
+    mockitoAgent
+}
+
+dependencies {
+    mockitoAgent platform(libs.spring.boot.dependencies.sedr)
+    mockitoAgent(libs.mockito.core.sedr) {
+        transitive = false
+    }
+}
+
+def mockitoAgentPath = configurations.mockitoAgent.elements.map { it.first().asFile.absolutePath }
+
+tasks.named('test', Test) {
+    jvmArgumentProviders.add(new MockitoAgent(path: mockitoAgentPath))
+}
+
+class MockitoAgent implements CommandLineArgumentProvider {
+    @Internal
+    Provider<String> path
+
+    @Override
+    Iterable<String> asArguments() {
+        ["-javaagent:${path.get()}".toString()]
+    }
 }
 
 // Coverage: 100% of the project's own code, measured on the unit tests alone.
@@ -90,6 +125,7 @@ pitest {
     pitestVersion = libs.versions.pitest.sedr.get()
     junit5PluginVersion = libs.versions.pitest.junit5.sedr.get()
     targetClasses = ['com.arc_e_tect.validation.async.*']
+    jvmArgs = mockitoAgentPath.map { ["-javaagent:${it}".toString()] }
     testSourceSets = [sourceSets.test]
     mutators = ['STRONGER']
     mutationThreshold = 100

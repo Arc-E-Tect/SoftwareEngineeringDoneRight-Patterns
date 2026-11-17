@@ -15,6 +15,8 @@ spring-boot-dependencies-sedr = { module = "org.springframework.boot:spring-boot
 # Managed by the Spring Boot BOM: no version.
 spring-boot-starter-webmvc-sedr = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-test-sedr = { module = "org.springframework:spring-test" }
+spring-kafka-sedr = { module = "org.springframework.kafka:spring-kafka" }
+mockito-core-sedr = { module = "org.mockito:mockito-core" }
 
 [plugins]
 

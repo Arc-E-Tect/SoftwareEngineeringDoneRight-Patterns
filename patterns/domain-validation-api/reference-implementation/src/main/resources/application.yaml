@@ -6,6 +6,18 @@ spring:
     problemdetails:
       enabled: true
 
+# Once a job has run, the validation-execution starter tells so: it posts the contract's
+# ValidationCompletedEventV1 to the webhook's subscribers, none by default, and sends it to the topic
+# when Kafka is turned on, with spring.kafka.bootstrap-servers pointing at the broker.
+validation:
+  execution:
+    events:
+      webhook:
+        subscribers: []
+      kafka:
+        enabled: false
+        topic: payments.validation.completed.v1
+
 payments:
   validation:
     name-iban-match:

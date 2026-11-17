@@ -13,6 +13,7 @@ spring-boot-sedr = "4.1.2"
 api-only-subscriber-sedr = "0.4.5"
 openapi-generator-sedr = "7.27.0"
 cucumber-sedr = "8.0.4"
+wiremock-sedr = "3.13.2"
 
 [libraries]
 
@@ -26,6 +27,11 @@ spring-boot-starter-test-sedr = { module = "org.springframework.boot:spring-boot
 spring-test-sedr = { module = "org.springframework:spring-test" }
 mockito-core-sedr = { module = "org.mockito:mockito-core" }
 junit-platform-suite-sedr = { module = "org.junit.platform:junit-platform-suite" }
+spring-boot-starter-kafka-sedr = { module = "org.springframework.boot:spring-boot-starter-kafka" }
+spring-boot-testcontainers-sedr = { module = "org.springframework.boot:spring-boot-testcontainers" }
+testcontainers-kafka-sedr = { module = "org.testcontainers:testcontainers-kafka" }
+
+wiremock-standalone-sedr = { module = "org.wiremock:wiremock-standalone", version.ref = "wiremock-sedr" }
 
 cucumber-java-sedr = { module = "io.cucumber:cucumber-java", version.ref = "cucumber-sedr" }
 cucumber-spring-sedr = { module = "io.cucumber:cucumber-spring", version.ref = "cucumber-sedr" }

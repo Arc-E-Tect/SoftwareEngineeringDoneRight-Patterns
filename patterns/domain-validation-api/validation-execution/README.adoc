@@ -37,7 +37,8 @@ public ResponseEntity<NameIbanMatchResultV1> validateNameIbanMatch(
                 case Checked checked -> mapper.toResult(checked);
                 case UnsupportedCountry refused -> throw NameIbanMatchProblems.unsupportedCountry(refused.countryCode());
                 case InvalidChecksum refused -> throw NameIbanMatchProblems.invalidChecksum();
-            });
+            },
+            mapper::outcomeOf);
 }
 
 @Override
@@ -49,11 +50,16 @@ public ResponseEntity<NameIbanMatchJobV1> getNameIbanMatchJob(String validationI
 `run` answers `200` with the result, unless the request has `Prefer: respond-async`.
 Then it submits the validation as a job under the request's `Idempotency-Key`, and answers `202` with the job, its `Location` and `Retry-After`; without a key it answers `400`, and for a key used before with a different request `422`.
 The request it is given, the use case's command, is what it compares; a problem the validation answers with, as an `ErrorResponseException`, fails the job with that problem.
+The last argument reads the outcome of a result, `valid`, `invalid` or `indeterminate`, which the starter does not know the type of.
 
 `job` answers the job of the validation, mapped as the controller says, with `Retry-After` while it is pending, or `404`.
 Every answer has `Cache-Control: no-store`.
 
 Jobs run on virtual threads, and are kept in memory unless the bounded context supplies its own `ValidationJobStore`.
+
+Once a job has run, the starter tells so with the contract's `ValidationCompletedEventV1`: the job's `validationId`, `validation`, `status`, its `outcome` when it completed, `completedAt` and its `location`.
+It posts the event to every subscriber of the webhook, and sends it to Kafka, keyed by the `validationId`, when the bounded context has Spring Boot's Kafka starter and turns publication on.
+Both are best effort: a subscriber or a send that fails is logged, and the job is not affected.
 
 [cols="2,1,3",options="header"]
 |===
@@ -66,6 +72,22 @@ Jobs run on virtual threads, and are kept in memory unless the bounded context s
 |`validation.execution.problem-types`
 |`https://api.example.com/problems/`
 |The base of the types of the problems the starter answers with: `invalid-request`, `idempotency-key-reused`, `validation-job-not-found` and `internal-server-error`.
+
+|`validation.execution.events.webhook.subscribers`
+|none
+|The URLs the webhook posts the completion of a job to.
+
+|`validation.execution.events.webhook.timeout`
+|`5s`
+|How long a subscriber may take to connect, and to answer.
+
+|`validation.execution.events.kafka.enabled`
+|`false`
+|Whether the completion of a job is sent to Kafka, through Spring Boot's Kafka auto-configuration, with `spring.kafka.*`.
+
+|`validation.execution.events.kafka.topic`
+|none
+|The topic the completion is sent to; required when publication is on.
 |===
 
 == Build and test

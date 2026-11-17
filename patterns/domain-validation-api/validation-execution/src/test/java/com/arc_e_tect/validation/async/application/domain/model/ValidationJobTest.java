@@ -19,7 +19,13 @@ class ValidationJobTest {
     private static final JobProblem PROBLEM = new JobProblem(URI.create("https://api.example.com/problems/internal-server-error"),
             "Internal Server Error", 500, "An unexpected error occurred while running the validation.");
 
-    private final ValidationJob pending = ValidationJob.pending("name-iban-match", KEY, "request");
+    private static final String OPERATION = "/payments/v1/validations/name-iban-match";
+
+    private final ValidationJob pending = ValidationJob.pending("name-iban-match", KEY, "request", OPERATION);
+
+    private String location() {
+        return OPERATION + "/" + pending.validationId();
+    }
 
     @Nested
     @DisplayName("when it is submitted")
@@ -40,13 +46,19 @@ class ValidationJobTest {
         @Test
         @DisplayName("has an identifier of its own")
         void hasAnIdentifierOfItsOwn() {
-            assertNotEquals(pending.validationId(), ValidationJob.pending("name-iban-match", KEY, "request").validationId());
+            assertNotEquals(pending.validationId(), ValidationJob.pending("name-iban-match", KEY, "request", OPERATION).validationId());
+        }
+
+        @Test
+        @DisplayName("is located at the operation's path followed by its identifier")
+        void isLocatedUnderItsOperation() {
+            assertEquals(OPERATION + "/" + pending.validationId(), pending.location());
         }
 
         @Test
         @DisplayName("keeps its validation, idempotency key and request")
         void keepsWhatItRuns() {
-            assertEquals(new ValidationJob(pending.validationId(), "name-iban-match", KEY, "request",
+            assertEquals(new ValidationJob(pending.validationId(), "name-iban-match", KEY, "request", location(),
                     ValidationJob.Status.PENDING, Optional.empty(), Optional.empty()), pending);
         }
     }
@@ -58,14 +70,14 @@ class ValidationJobTest {
         @Test
         @DisplayName("is completed with its result")
         void isCompletedWithItsResult() {
-            assertEquals(new ValidationJob(pending.validationId(), "name-iban-match", KEY, "request",
+            assertEquals(new ValidationJob(pending.validationId(), "name-iban-match", KEY, "request", location(),
                     ValidationJob.Status.COMPLETED, Optional.of("result"), Optional.empty()), pending.completed("result"));
         }
 
         @Test
         @DisplayName("is failed with its problem")
         void isFailedWithItsProblem() {
-            assertEquals(new ValidationJob(pending.validationId(), "name-iban-match", KEY, "request",
+            assertEquals(new ValidationJob(pending.validationId(), "name-iban-match", KEY, "request", location(),
                     ValidationJob.Status.FAILED, Optional.empty(), Optional.of(PROBLEM)), pending.failed(PROBLEM));
         }
 
@@ -93,60 +105,73 @@ class ValidationJobTest {
         @Test
         @DisplayName("with a result while it is not completed")
         void withAResultWhileNotCompleted() {
-            assertThrows(IllegalArgumentException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request",
+            assertThrows(IllegalArgumentException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request", location(),
                     ValidationJob.Status.PENDING, Optional.of("result"), Optional.empty()));
         }
 
         @Test
         @DisplayName("completed without a result")
         void completedWithoutAResult() {
-            assertThrows(IllegalArgumentException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request",
+            assertThrows(IllegalArgumentException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request", location(),
                     ValidationJob.Status.COMPLETED, Optional.empty(), Optional.empty()));
         }
 
         @Test
         @DisplayName("with a problem while it has not failed")
         void withAProblemWhileNotFailed() {
-            assertThrows(IllegalArgumentException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request",
+            assertThrows(IllegalArgumentException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request", location(),
                     ValidationJob.Status.PENDING, Optional.empty(), Optional.of(PROBLEM)));
         }
 
         @Test
         @DisplayName("failed without a problem")
         void failedWithoutAProblem() {
-            assertThrows(IllegalArgumentException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request",
+            assertThrows(IllegalArgumentException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request", location(),
                     ValidationJob.Status.FAILED, Optional.empty(), Optional.empty()));
         }
 
         @Test
         @DisplayName("without a request")
         void withoutARequest() {
-            assertThrows(NullPointerException.class, () -> ValidationJob.pending("name-iban-match", KEY, null));
+            assertThrows(NullPointerException.class, () -> ValidationJob.pending("name-iban-match", KEY, null, OPERATION));
         }
 
         @Test
         @DisplayName("without an idempotency key")
         void withoutAnIdempotencyKey() {
-            assertThrows(NullPointerException.class, () -> ValidationJob.pending("name-iban-match", null, "request"));
+            assertThrows(NullPointerException.class, () -> ValidationJob.pending("name-iban-match", null, "request", OPERATION));
         }
 
         @Test
         @DisplayName("without a validation")
         void withoutAValidation() {
-            assertThrows(NullPointerException.class, () -> ValidationJob.pending(null, KEY, "request"));
+            assertThrows(NullPointerException.class, () -> ValidationJob.pending(null, KEY, "request", OPERATION));
+        }
+
+        @Test
+        @DisplayName("without the operation's path")
+        void withoutTheOperationsPath() {
+            assertThrows(NullPointerException.class, () -> ValidationJob.pending("name-iban-match", KEY, "request", null));
+        }
+
+        @Test
+        @DisplayName("without a location")
+        void withoutALocation() {
+            assertThrows(NullPointerException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request", null,
+                    ValidationJob.Status.PENDING, Optional.empty(), Optional.empty()));
         }
 
         @Test
         @DisplayName("without an identifier")
         void withoutAnIdentifier() {
-            assertThrows(NullPointerException.class, () -> new ValidationJob(null, "name-iban-match", KEY, "request",
+            assertThrows(NullPointerException.class, () -> new ValidationJob(null, "name-iban-match", KEY, "request", location(),
                     ValidationJob.Status.PENDING, Optional.empty(), Optional.empty()));
         }
 
         @Test
         @DisplayName("without a status")
         void withoutAStatus() {
-            assertThrows(NullPointerException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request",
+            assertThrows(NullPointerException.class, () -> new ValidationJob("id", "name-iban-match", KEY, "request", OPERATION + "/id",
                     null, Optional.empty(), Optional.empty()));
         }
     }

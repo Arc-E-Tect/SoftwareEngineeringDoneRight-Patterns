@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class InMemoryValidationJobStoreTest {
 
     private final InMemoryValidationJobStore store = new InMemoryValidationJobStore();
-    private final ValidationJob job = ValidationJob.pending("name-iban-match", "key", "request");
+    private final ValidationJob job = ValidationJob.pending("name-iban-match", "key", "request", "/validations");
 
     @Test
     @DisplayName("claims a job for a key it does not hold")
@@ -33,14 +33,14 @@ class InMemoryValidationJobStoreTest {
     void answersTheJobItHoldsForAKey() {
         store.claim(job);
 
-        assertEquals(job, store.claim(ValidationJob.pending("name-iban-match", "key", "another request")));
+        assertEquals(job, store.claim(ValidationJob.pending("name-iban-match", "key", "another request", "/validations")));
     }
 
     @Test
     @DisplayName("does not store a second job for a key it holds")
     void doesNotStoreASecondJob() {
         store.claim(job);
-        ValidationJob second = ValidationJob.pending("name-iban-match", "key", "another request");
+        ValidationJob second = ValidationJob.pending("name-iban-match", "key", "another request", "/validations");
         store.claim(second);
 
         assertEquals(Optional.empty(), store.find("name-iban-match", second.validationId()));
@@ -50,7 +50,7 @@ class InMemoryValidationJobStoreTest {
     @DisplayName("keeps the keys of different validations apart")
     void keepsTheKeysOfValidationsApart() {
         store.claim(job);
-        ValidationJob other = ValidationJob.pending("entry-eligibility", "key", "request");
+        ValidationJob other = ValidationJob.pending("entry-eligibility", "key", "request", "/validations");
 
         assertEquals(other, store.claim(other));
     }

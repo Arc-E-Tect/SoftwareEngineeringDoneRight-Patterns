@@ -56,6 +56,8 @@ dependencies {
     implementation libs.spring.boot.starter.webmvc.sedr
     implementation libs.spring.boot.starter.validation.sedr
     implementation libs.validation.execution.sedr
+    // Kafka, which the starter publishes the completion of a job to when it is turned on.
+    implementation libs.spring.boot.starter.kafka.sedr
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -227,7 +229,8 @@ testing {
             }
         }
 
-        // System tests: the BDD features, one per API operation, against the running service.
+        // System tests: the BDD features, one per API operation and one each for the webhook and the
+        // event, against the running service; WireMock receives the webhook, and Kafka runs in Docker.
         testSystem(JvmTestSuite) {
             useJUnitJupiter(libs.versions.junit.sedr.get())
             dependencies {
@@ -235,6 +238,10 @@ testing {
                 implementation springBootBom
                 implementation libs.spring.boot.starter.test.sedr
                 implementation.bundle(libs.bundles.cucumber.sedr)
+                implementation libs.spring.boot.starter.kafka.sedr
+                implementation libs.spring.boot.testcontainers.sedr
+                implementation libs.testcontainers.kafka.sedr
+                implementation libs.wiremock.standalone.sedr
             }
             targets.configureEach {
                 testTask.configure {
