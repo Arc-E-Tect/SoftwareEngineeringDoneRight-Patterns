@@ -1,0 +1,211 @@
+= Verification report: Domain Validation API
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+:icons: font
+
+[NOTE]
+.Where the links in this document go
+====
+`↗` leads to an external site, `→` to another file in this repository, and `§` to a section of this same file.
+====
+
+This report checks the Domain Validation API reference implementation against every requirement of its brief.
+Each requirement is met, or met with an exception that the link:decision-log.adoc[decision log →] records and the maintainer approved.
+
+The checks ran on 2026-11-18, on a fresh clone of the `phase-6-verification` branch at `ca20eb9`, with no build cache and nothing left over from an earlier build.
+
+== The builds
+
+[cols="2,1,3",options="header"]
+|===
+|Build |Result |What it ran
+
+|`api/`
+|Passed
+|`npm ci`, then the API-Only Publisher's `build`, `lint` and `check`.
+
+|`patterns/domain-validation-api/validation-execution`
+|Passed
+|`./gradlew clean build --no-build-cache`: 156 unit tests, coverage at 100%, every mutant killed.
+
+|`patterns/domain-validation-api/reference-implementation`
+|Passed
+|`./gradlew clean build --no-build-cache`: 308 unit tests, 6 component tests, 21 contract tests of which 2 disabled, 35 system scenarios and 41 architecture tests, coverage at 100%, every mutant killed.
+|===
+
+The same builds run in CI on every pull request; each pull request of Phases 1 to 5 merged with them green.
+
+== Platform and tools
+
+[cols="3,1,4",options="header"]
+|===
+|Requirement |Status |Evidence
+
+|Java 25
+|Met
+|`java.toolchain.languageVersion = JavaLanguageVersion.of(25)` in both builds; the foojay resolver provisions it.
+
+|Gradle 9.8.2, with the wrapper committed; Gradle only
+|Met
+|`gradle/wrapper/gradle-wrapper.properties` of both builds; no other build tool builds Java.
+
+|Versions kept up to date with refreshVersions
+|Met
+|`de.fayard.refreshVersions` 0.60.6 in both `settings.gradle`, rejecting less stable candidates; every alias in the catalogues ends in `-sedr`.
+
+|Spring Boot
+|Met
+|Spring Boot 4.1.2, its BOM as a Gradle platform: see the decision log's _Structure and build_.
+
+|No Lombok in the domain
+|Met
+|Lombok is used nowhere in the repository.
+
+|API-Only Publisher, Subscriber and TranscriberJ
+|Met
+|The Publisher builds the contract from `api/` into the file channel; the Subscriber 0.4.5 fetches it against `apionly.lock`; the TranscriberJ 0.17.5 generates the contract tests.
+
+|OpenAPI Generator's `spring` generator, with the agreed options
+|Met
+|`openApiGenerate` in the reference implementation's `build.gradle`, 7.27.0, with the options of the decision log's _OpenAPI Generator_; generated code is never edited, and is generated into `build/`.
+|===
+
+== Architecture
+
+[cols="3,1,4",options="header"]
+|===
+|Requirement |Status |Evidence
+
+|Hexagonal, as the pattern describes, with inbound and outbound ports and adapters
+|Met
+|The red-thread layout per slice: `application.domain`, `application.port.inbound` and `.outbound`, `adapter.inbound` and `.outbound`, `configuration`; the starter is laid out the same way.
+
+|The Architecture Validator, with the Spring rule pack and a rule pack of the pattern
+|Met
+|Architecture Validator 4.1.0 with `hexagonal-spring-rules` 1.0.5 and `domain-validation-rules` 0.0.1: 41 architecture tests, none failing.
+|===
+
+== Quality gates
+
+[cols="3,1,4",options="header"]
+|===
+|Requirement |Status |Evidence
+
+|100% coverage of non-generated code
+|Met
+|JaCoCo's instruction, branch, line, method and class counters at 100% in both builds; only the generated `adapter.inbound.web.api` package is excluded.
+
+|Unit tests that verify behaviour, not just run it
+|Met
+|PIT with `STRONGER` mutators and a 100% mutation-score gate in `check`: all 104 mutants killed in the starter, all 238 in the reference implementation; only generated code is excluded.
+
+|Never weaken a requirement
+|Met, with one approved exception
+|No coverage or mutation exclusion beyond generated code, no rule suppressed, no generated code edited.
+Two generated contract tests are disabled, with their reason, as <<exceptions,Exceptions §>> describes.
+|===
+
+== Testing conventions
+
+[cols="3,1,4",options="header"]
+|===
+|Requirement |Status |Evidence
+
+|The test taxonomy: unit, component, contract and system tests; never "integration test"
+|Met
+|Suites `test`, `testComponent`, `testContract`, `testSystem` and the validator's `testArchitecture`, declared in `testing { suites { } }`; the term appears only in the rule that forbids it.
+
+|One assertion per test
+|Met
+|Every test method asserts once; the two disabled contract tests delegate to their generated test.
+
+|`@DisplayName` on every test
+|Met
+|Every test method and every test class carries one; the generated contract tests carry their own.
+
+|Idempotent, independent tests
+|Met
+|Unit and component tests share no state; the system tests share one service, so every scenario uses an `Idempotency-Key` of its own; the stateful contract tests arrange their own state.
+
+|BDD features per API operation
+|Met
+|`validate-name-iban-match.feature` and `get-name-iban-match-job.feature`, plus one for the webhook and one for the event, as the next table shows.
+
+|Contract tests through the TranscriberJ
+|Met, with one approved exception
+|`testContract`: every HTTP case through the REST Docs emitter, and the event through the Microcks emitter; see <<exceptions,Exceptions §>>.
+|===
+
+=== What the features cover
+
+[cols="2,3",options="header"]
+|===
+|The brief asks for |Scenario
+
+|An exact, a close and no match
+|_The name is the registered name_; _The name is close to the registered name, which is returned so the payer can correct it_; _The name is somebody else's_; _The scheme does not know the account_.
+
+|An indeterminate verdict
+|_The scheme cannot answer, so the payer can decide whether to pay_ (unavailable, and too slow).
+
+|`400` and `422`
+|_A request that breaks the contract says where_; _A request that breaks the contract as a whole_; _A request without a body_; _An Idempotency-Key that is not a lower-case UUID_; _An identifier that is not a lower-case UUID is refused_; _The scheme does not cover the account's country_; _The IBAN has the wrong check digits_.
+
+|`202` with polling
+|_The payer prefers an asynchronous answer_; _A job that has not run yet says when to read it again_; _A job that has run carries the result_; _There is no validation job with the identifier_.
+
+|The same `Idempotency-Key`
+|_The same request with the same Idempotency-Key gets the same job_; _Another request with the same Idempotency-Key is refused_; _An asynchronous answer needs an Idempotency-Key, so that a retry does not start a second job_.
+
+|Webhook delivery
+|_A subscriber is told that a job completed, and where to read it_; _A subscriber is told that a job failed, without an outcome_; _A subscriber that answers with an error keeps neither the others nor the job from theirs_.
+
+|Kafka publication
+|_The completion of a job is published, keyed by the job's identifier_; _An indeterminate verdict is published as such_; _The failure of a job is published, without an outcome_.
+|===
+
+== Documentation
+
+[cols="3,1,4",options="header"]
+|===
+|Requirement |Status |Evidence
+
+|A README per project
+|Met
+|The root, `api/`, `patterns/`, the pattern's folder, the starter and the reference implementation each have a `README.adoc`.
+
+|The security disclaimer
+|Met
+|Every README states that the reference implementations omit security and must not be used as-is in production.
+
+|One sentence per line
+|Met
+|Every AsciiDoc document in the repository, this one included.
+
+|A decision log
+|Met
+|link:decision-log.adoc[`docs/decision-log.adoc` →] records every decision of Phases 0 to 6, with its date.
+
+|The pattern document reflects the agreed changes
+|Met
+|Each change to `domain-validation-api-pattern.adoc` was proposed as a diff and approved; its snippets stay illustrative, and the reference implementation shows the real code.
+|===
+
+[#exceptions]
+== Exceptions
+
+Each exception was approved by the maintainer and is recorded in the decision log.
+
+[cols="2,3",options="header"]
+|===
+|Exception |Why
+
+|The generated contract tests `success-202-required` and `success-200-full` are disabled, with their reason.
+|`Prefer: respond-async` selects whether the service answers `200` or `202`, and the TranscriberJ cannot tie a response to a header, so it expects each status for both requests.
+Their counterparts, `success-200-required` and `success-202-full`, run.
+They are enabled again once the TranscriberJ can express a response that a header selects.
+
+|The `422` and `500` responses have no generated contract cases.
+|The TranscriberJ derives a case only for a response the contract alone can provoke, and reports these as not covered; the system features cover the `422`s, and the handler's unit tests the `500`.
+|===
