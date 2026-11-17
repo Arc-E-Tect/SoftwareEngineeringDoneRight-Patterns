@@ -1,0 +1,2 @@
+name: Name IBAN Match
+description: Whether the name a payer gives matches the name of the holder of the account with a given IBAN.

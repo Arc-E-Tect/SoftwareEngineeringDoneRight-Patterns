@@ -1,0 +1,8 @@
+summary: Accounts in Brazil cannot be verified.
+value:
+  type: https://api.example.com/payments/problems/unsupported-country
+  title: Unsupported Country
+  status: 422
+  detail: Accounts in BR cannot be verified.
+  instance: /payments/v1/validations/name-iban-match
+  countryCode: BR

@@ -1,0 +1,7 @@
+summary: Something went wrong in the service.
+value:
+  type: https://api.example.com/problems/internal-server-error
+  title: Internal Server Error
+  status: 500
+  detail: An unexpected error occurred while processing the request.
+  instance: /payments/v1/validations/name-iban-match

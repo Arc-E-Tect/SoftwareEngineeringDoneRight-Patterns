@@ -1,0 +1,39 @@
+title: Unsupported Country Problem
+description: The IBAN is well-formed, but the scheme that verifies payees does not cover its country.
+allOf:
+  - $ref: '../../../common/responses/errors/ProblemDetailsV1.yaml'
+  - type: object
+    required:
+      - type
+      - title
+      - status
+      - detail
+      - countryCode
+    properties:
+      type:
+        type: string
+        const: https://api.example.com/payments/problems/unsupported-country
+        examples:
+          - https://api.example.com/payments/problems/unsupported-country
+      title:
+        type: string
+        const: Unsupported Country
+        examples:
+          - Unsupported Country
+      status:
+        type: integer
+        const: 422
+        examples:
+          - 422
+      detail:
+        type: string
+        minLength: 1
+        examples:
+          - Accounts in BR cannot be verified.
+      countryCode:
+        title: Country Code
+        description: The ISO 3166-1 alpha-2 country code of the IBAN.
+        type: string
+        pattern: '^[A-Z]{2}$'
+        examples:
+          - BR

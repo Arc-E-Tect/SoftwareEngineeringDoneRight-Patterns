@@ -1,0 +1,8 @@
+address: payments.validation.completed.v1
+title: Validation Completed
+description: >-
+  Asynchronous validations of the payments bounded context that have finished.
+  Each event is keyed by its validationId, so the events of one job stay in order.
+messages:
+  validationCompleted:
+    $ref: '../../messages/payments/ValidationCompletedMessageV1.yaml'

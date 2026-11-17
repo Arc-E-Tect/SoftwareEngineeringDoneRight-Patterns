@@ -1,0 +1,100 @@
+= API Specifications
+:toc: left
+:toc-title: Contents
+:toclevels: 2
+:icons: font
+:source-highlighter: rouge
+
+[NOTE]
+.Where the links in this document go
+====
+`↗` leads to an external site, `→` to another file in this repository, and `§` to a section of this same file.
+====
+
+The API specifications of the patterns in this repository, as one specification library for the https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-API[API-Only Publisher ↗].
+Each pattern is a target of its own, and a reference implementation subscribes to its pattern's target.
+
+[WARNING]
+====
+The contracts deliberately declare no security, like the reference implementations they describe: every operation has `security: []`.
+They must not be used as-is in production; link:../README.adoc[the repository README →] explains why.
+====
+
+[#targets]
+== Targets
+
+[cols="2,1,5",options="header"]
+|===
+|Target |Version |What it is
+
+|`domain-validation-api`
+|link:specs/openapi/bundles/domain-validation-api.bundle.properties[0.0.1 →]
+|The contract of the link:../patterns/domain-validation-api/README.adoc[Domain Validation API →] reference implementation: the payments bounded context with the `name-iban-match` validation.
+An OpenAPI 3.1.1 document with the validation, its job resource and the `validationCompleted` webhook, and an AsyncAPI 3.1.0 document with the `ValidationCompleted` event.
+|===
+
+[#layout]
+== Layout
+
+The library follows the conventions of the API-Only reference API.
+
+* A schema's version is in its fragment's file name: `NameIbanMatchRequestV1.yaml`.
+* Fragments are grouped by what they belong to: `payments/name-iban-match/` for one validation of one bounded context, `validation/` for the conventions every bounded context shares, and `common/` for what any API shares, such as Problem Details.
+* A definition that the HTTP API and the events both use is one fragment, in the OpenAPI tree, and the AsyncAPI tree refers to it.
+* Every problem type is a fragment of its own, which fixes its `type`, `title` and `status` with `const`.
+* Every request, response and message has an example; the build fails without one.
+
+[source,text]
+----
+specs/
+├── openapi/
+│   ├── bundles/        the root of each target's OpenAPI document, and its version file
+│   ├── shared/         info, servers, and the Markdown snippets the documents include
+│   ├── tags/
+│   ├── paths/
+│   ├── webhooks/
+│   └── components/
+│       ├── validation/ the shared envelope of the Domain Validation API pattern
+│       ├── common/     Problem Details and the problem types every API shares
+│       └── payments/   the payments bounded context, one directory per validation
+└── asyncapi/
+    ├── bundles/        the root of each target's AsyncAPI document
+    ├── channels/
+    └── messages/
+----
+
+[#envelope]
+=== The shared envelope
+
+The Domain Validation API pattern publishes its envelope once, as a versioned set of schemas that every bounded context references from its own contract.
+In this library, that set is the fragments under `components/validation/`.
+The Publisher builds documents, not stand-alone schema sets, so every target that uses the envelope references the same fragments, and its document carries them.
+Every component says which fragment it came from, in `x-fragment-path`, so the envelope can be recognised in every document.
+
+[#build]
+== Build
+
+Requirements: Node.js 22.14 or later, 24.10 or later, or 26.
+The Publisher is a development dependency, pinned to one version; it pins the bundlers and linters it runs itself.
+
+[source,console]
+----
+npm ci
+npm run apionly -- build
+npm run apionly -- lint
+npm run apionly -- check
+npm run apionly -- publish --channel file
+----
+
+`build` bundles every target into `build/dist/`.
+`lint` lints the built documents with link:.redocly.lint.yaml[the reference API's lint configuration →], unchanged, and fails on a fragment that no target reaches.
+`check` fails when a target changed since `main` and its version did not.
+`publish` writes each target as a versioned archive under `build/publish/`, where the reference implementations' builds subscribe to it.
+
+Nothing under `build/` is committed.
+
+[#changing]
+== Changing a contract
+
+Raise the target's version in its `bundle.properties` file in the same change as the fragments: major for a breaking change, minor for an addition, patch for anything else.
+The repository's pre-push hook runs `check` when a push changes `api/`, and so does the CI build.

@@ -1,0 +1,26 @@
+title: Name IBAN Match Details
+description: How the given name compares with the name registered for the account.
+type: object
+required:
+  - match
+properties:
+  match:
+    title: Match
+    description: >-
+      `exact` when the names are equal after normalising case, whitespace and diacritics,
+      `close` when they are similar enough to be a typing error, and `none` otherwise.
+    type: string
+    enum:
+      - exact
+      - close
+      - none
+    examples:
+      - exact
+  registeredName:
+    title: Registered Name
+    description: >-
+      The name registered for the account.
+      Present only for a close match, so that the payer can correct an obvious typing error.
+    type: string
+    examples:
+      - Jan de Vries

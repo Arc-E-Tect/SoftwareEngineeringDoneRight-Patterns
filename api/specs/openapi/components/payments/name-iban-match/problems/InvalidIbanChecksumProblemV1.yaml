@@ -1,0 +1,31 @@
+title: Invalid IBAN Checksum Problem
+description: The IBAN has the right shape, but its check digits are wrong (ISO 13616 mod-97).
+allOf:
+  - $ref: '../../../common/responses/errors/ProblemDetailsV1.yaml'
+  - type: object
+    required:
+      - type
+      - title
+      - status
+      - detail
+    properties:
+      type:
+        type: string
+        const: https://api.example.com/payments/problems/invalid-iban-checksum
+        examples:
+          - https://api.example.com/payments/problems/invalid-iban-checksum
+      title:
+        type: string
+        const: Invalid IBAN Checksum
+        examples:
+          - Invalid IBAN Checksum
+      status:
+        type: integer
+        const: 422
+        examples:
+          - 422
+      detail:
+        type: string
+        minLength: 1
+        examples:
+          - The check digits of the IBAN are wrong.

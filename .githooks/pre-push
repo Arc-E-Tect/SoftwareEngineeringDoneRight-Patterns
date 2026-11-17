@@ -7,19 +7,45 @@ if [[ -z "$branch" || "$branch" == "main" || "$branch" == "maintenance" ]]; then
   exit 0
 fi
 
-if ! command -v gh >/dev/null 2>&1; then
-  printf 'Warning: GitHub CLI is unavailable; cannot check the pull request state for %s.\n' "$branch" >&2
-  exit 0
-fi
+# Blocks a push to a branch whose pull request is already merged or closed.
+check_pull_request_state() {
+  if ! command -v gh >/dev/null 2>&1; then
+    printf 'Warning: GitHub CLI is unavailable; cannot check the pull request state for %s.\n' "$branch" >&2
+    return 0
+  fi
 
-pr_state=$(gh pr view "$branch" --json state --jq .state 2>/dev/null || true)
+  local pr_state
+  pr_state=$(gh pr view "$branch" --json state --jq .state 2>/dev/null || true)
 
-case "$pr_state" in
-  MERGED|CLOSED)
-    printf 'Error: the pull request for branch %s is %s. Create a new branch before pushing.\n' "$branch" "$pr_state" >&2
-    exit 1
-    ;;
-  *)
-    exit 0
-    ;;
-esac
+  case "$pr_state" in
+    MERGED|CLOSED)
+      printf 'Error: the pull request for branch %s is %s. Create a new branch before pushing.\n' "$branch" "$pr_state" >&2
+      return 1
+      ;;
+  esac
+}
+
+# Blocks a push that changes a contract in api/ without raising its version.
+check_api_versions() {
+  local base
+  base=$(git merge-base HEAD origin/main 2>/dev/null || true)
+
+  if [[ -z "$base" ]]; then
+    printf 'Warning: no merge-base with origin/main; cannot check the API versions.\n' >&2
+    return 0
+  fi
+
+  if git diff --quiet "$base" HEAD -- api/; then
+    return 0
+  fi
+
+  if [[ ! -d api/node_modules ]]; then
+    printf 'Error: api/ changed, and its versions cannot be checked: run npm --prefix api ci first.\n' >&2
+    return 1
+  fi
+
+  npm --prefix api run --silent apionly -- check
+}
+
+check_pull_request_state
+check_api_versions

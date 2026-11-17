@@ -1,0 +1,6 @@
+description: How many seconds the client should wait before it reads the validation job.
+schema:
+  type: integer
+  minimum: 1
+  examples:
+    - 2

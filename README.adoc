@@ -7,6 +7,16 @@
 
 image:https://img.shields.io/badge/License-MIT-blue[MIT,link=LICENSE]
 
+[IMPORTANT]
+.Co-authored by AI
+====
+The code and documentation in this repository were created in large part by Claude, an AI assistant made by Anthropic, working with and directed by the maintainer.
+The maintainer takes every design decision, reviews every change, and merges it; link:docs/decision-log.adoc[the decision log →] records each decision and its reason.
+Commits that contain code written by Claude say so with a `Co-authored-by: Claude` trailer.
+The work is held to the same standard as any other: tested, verified in the build, and open to correction.
+If something seems wrong, please link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/issues/new[open an issue ↗].
+====
+
 [NOTE]
 .Where the links in this document go
 ====
@@ -60,6 +70,10 @@ Every project builds, tests and runs on its own.
 |link:patterns/domain-validation-api/validation-execution/README.adoc[`validation-execution` →]
 |Domain Validation API
 |The reusable asynchronous execution of validations, as a Spring Boot starter.
+
+|link:api/README.adoc[`api` →]
+|Every pattern
+|The API specifications of the patterns, as an API-Only specification library with one target per pattern.
 |===
 
 [#development]
@@ -73,7 +87,8 @@ Install the repository's Git hooks once after cloning:
 ----
 
 Each project's README says how to build, test and run it.
-The builds need Java 25; each project brings its own Gradle wrapper.
+The Java builds need Java 25; each project brings its own Gradle wrapper.
+The `api` library needs Node.js instead, as its README says.
 
 link:docs/decision-log.adoc[The decision log →] records every decision taken for this repository, with its reason.
 

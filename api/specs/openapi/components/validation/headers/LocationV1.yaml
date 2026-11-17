@@ -1,0 +1,7 @@
+description: The path of the validation job resource, relative to the server.
+required: true
+schema:
+  type: string
+  format: uri-reference
+  examples:
+    - /payments/v1/validations/name-iban-match/8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f

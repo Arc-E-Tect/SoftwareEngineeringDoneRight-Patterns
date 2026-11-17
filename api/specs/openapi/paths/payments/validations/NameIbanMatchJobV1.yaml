@@ -1,0 +1,66 @@
+get:
+  security: []
+  tags:
+    - Name IBAN Match
+  operationId: getNameIbanMatchJob
+  summary: Read an asynchronous name-iban-match validation.
+  description: >-
+    Returns the validation job that a `202 Accepted` pointed to:
+    `pending` with a `Retry-After`, `completed` with the result, or `failed` with a problem.
+  parameters:
+    - $ref: '../../../components/validation/parameters/ValidationIdPathParameterV1.yaml'
+  responses:
+    '200':
+      description: The validation job.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+        Retry-After:
+          $ref: '../../../components/validation/headers/RetryAfterV1.yaml'
+      content:
+        application/json:
+          schema:
+            $ref: '../../../components/payments/name-iban-match/schemas/NameIbanMatchJobV1.yaml'
+          examples:
+            Completed:
+              $ref: '../../../components/payments/name-iban-match/examples/CompletedJobV1.yaml'
+            Pending:
+              $ref: '../../../components/payments/name-iban-match/examples/PendingJobV1.yaml'
+            Failed:
+              $ref: '../../../components/payments/name-iban-match/examples/FailedJobV1.yaml'
+    '400':
+      description: The validation id is not a lower-case UUID.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../../../components/common/responses/errors/InvalidRequestProblemV1.yaml'
+          examples:
+            InvalidRequest:
+              $ref: '../../../components/common/examples/InvalidRequestProblemV1.yaml'
+    '404':
+      description: No name-iban-match validation job has this id.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../../../components/common/responses/errors/ValidationJobNotFoundProblemV1.yaml'
+          examples:
+            NotFound:
+              $ref: '../../../components/common/examples/ValidationJobNotFoundProblemV1.yaml'
+    '500':
+      description: An unexpected server-side error occurred.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../../../components/common/responses/errors/InternalServerProblemV1.yaml'
+          examples:
+            InternalServerError:
+              $ref: '../../../components/common/examples/InternalServerProblemV1.yaml'

@@ -1,0 +1,12 @@
+name: Prefer
+in: header
+required: false
+description: >-
+  The client's preferences (RFC 7240).
+  `respond-async` asks for the validation to run as a job; it then also requires an `Idempotency-Key`.
+  Preferences the service does not support are ignored, as RFC 7240 requires.
+schema:
+  type: string
+  minLength: 1
+  examples:
+    - respond-async

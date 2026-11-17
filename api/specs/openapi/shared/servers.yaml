@@ -1,0 +1,5 @@
+- url: https://api.example.com/payments
+  description: Production server. The host is an example; the reference implementation is not deployed.
+- url: http://localhost:8080/payments
+  description: The reference implementation, running locally.
+  x-internal: true

@@ -1,0 +1,24 @@
+title: Validation Job
+description: >-
+  An asynchronous validation.
+  A validation's own job schema extends it with that validation's result, and pins `validation` to its name.
+type: object
+required:
+  - validationId
+  - validation
+  - status
+properties:
+  validationId:
+    $ref: './ValidationIdV1.yaml'
+  validation:
+    title: Validation
+    description: The name of the validation this job runs; an open set, as in the result envelope.
+    type: string
+    minLength: 1
+    examples:
+      - name-iban-match
+  status:
+    $ref: './ValidationJobStatusV1.yaml'
+  problem:
+    description: Why the job failed; present only when its status is `failed`.
+    $ref: '../../common/responses/errors/ProblemDetailsV1.yaml'

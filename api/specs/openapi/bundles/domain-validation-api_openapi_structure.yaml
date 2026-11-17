@@ -1,0 +1,16 @@
+openapi: 3.1.1
+info:
+  $ref: '../shared/info.yaml'
+servers:
+  $ref: '../shared/servers.yaml'
+tags:
+  - $ref: '../tags/payments/NameIbanMatchV1.yaml'
+  - $ref: '../tags/validation/ValidationEventsV1.yaml'
+paths:
+  /v1/validations/name-iban-match:
+    $ref: '../paths/payments/validations/NameIbanMatchV1.yaml'
+  /v1/validations/name-iban-match/{validationId}:
+    $ref: '../paths/payments/validations/NameIbanMatchJobV1.yaml'
+webhooks:
+  validationCompleted:
+    $ref: '../webhooks/validation/ValidationCompletedV1.yaml'

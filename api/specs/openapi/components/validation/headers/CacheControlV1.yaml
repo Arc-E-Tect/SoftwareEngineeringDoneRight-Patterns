@@ -1,0 +1,7 @@
+description: The response is never stored, because validation input and results are often sensitive.
+required: true
+schema:
+  type: string
+  const: no-store
+  examples:
+    - no-store

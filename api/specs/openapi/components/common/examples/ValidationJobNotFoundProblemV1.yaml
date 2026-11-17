@@ -1,0 +1,7 @@
+summary: No job has this identifier.
+value:
+  type: https://api.example.com/problems/validation-job-not-found
+  title: Validation Job Not Found
+  status: 404
+  detail: No name-iban-match validation job has the identifier 0b6f1c7e-2d4a-4b8e-9f3c-5a1d7e9b2c40.
+  instance: /payments/v1/validations/name-iban-match/0b6f1c7e-2d4a-4b8e-9f3c-5a1d7e9b2c40

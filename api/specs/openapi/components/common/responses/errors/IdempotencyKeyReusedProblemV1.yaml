@@ -1,0 +1,31 @@
+title: Idempotency Key Reused Problem
+description: The Idempotency-Key was used before, with a different request body.
+allOf:
+  - $ref: ./ProblemDetailsV1.yaml
+  - type: object
+    required:
+      - type
+      - title
+      - status
+      - detail
+    properties:
+      type:
+        type: string
+        const: https://api.example.com/problems/idempotency-key-reused
+        examples:
+          - https://api.example.com/problems/idempotency-key-reused
+      title:
+        type: string
+        const: Idempotency Key Reused
+        examples:
+          - Idempotency Key Reused
+      status:
+        type: integer
+        const: 422
+        examples:
+          - 422
+      detail:
+        type: string
+        minLength: 1
+        examples:
+          - The Idempotency-Key 3f1c9b0e-6a2d-4f7e-9c41-0b8a5e2d7c11 was used before, with a different request body.

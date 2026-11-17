@@ -170,6 +170,89 @@ They stayed off only while the pattern document used a `UseCase` prefix.
 
 |2026-11-17
 |Problem Details follow the reference API: `ProblemDetailsV1` plus one fragment per problem type with `const` type, title and status, served as `application/problem+json`.
+
+|2026-11-17
+|The API library lives in `api/` with the reference API's layout: the version in each fragment's file name, fragments grouped by owner (`components/validation/` for the pattern's shared envelope, `common/` for Problem Details, `payments/name-iban-match/` for the validation), and a definition that HTTP and events share kept once in the OpenAPI tree.
+
+|2026-11-17
+|The shared envelope is one set of fragments under `components/validation/`, referenced by every target that needs it, not a target of its own: the Publisher builds documents, not stand-alone schema sets.
+The pattern document's "published once as a versioned set of schemas" stays as it is; `api/README.adoc` explains how this library realises it.
+
+|2026-11-17
+|The `202 Accepted` is one shared response, `ValidationAcceptedV1`, with `Location`, `Retry-After` and `Cache-Control`, and the pending job (`ValidationJobV1`, without a result) as its body.
+
+|2026-11-17
+|The job resource is typed per validation: `NameIbanMatchJobV1` extends the shared `ValidationJobV1`, pins `validation` with `const`, and types `result` as `NameIbanMatchResultV1`.
+A failed job carries a `problem` with `ProblemDetailsV1`.
+
+|2026-11-17
+|The `422` of `name-iban-match` is a `oneOf` of three named problem fragments: `InvalidIbanChecksumProblemV1`, `UnsupportedCountryProblemV1` and `IdempotencyKeyReusedProblemV1`.
+
+|2026-11-17
+|A missing `Idempotency-Key` with `Prefer: respond-async` is answered with the shared `InvalidRequestProblemV1`, with an error naming the header.
+The header is declared optional, because "required only when asynchronous" needs `if`/`then`, which the TranscriberJ does not type yet.
+
+|2026-11-17
+|Problem type URIs: `https://api.example.com/problems/<name>` for the problems every bounded context shares (`invalid-request`, `validation-job-not-found`, `idempotency-key-reused`, `internal-server-error`), and `https://api.example.com/payments/problems/<name>` for those of payments (`unsupported-country`, `invalid-iban-checksum`).
+
+|2026-11-17
+|`Idempotency-Key` and `validationId` are lower-case UUIDs, with the pattern from the API repository's guide, so the TranscriberJ can derive valid values, a `400` case and, for `validationId`, a `404` case.
+
+|2026-11-17
+|`Prefer` is a plain string, not an enum: RFC 7240 requires a server to ignore preferences it does not support.
+
+|2026-11-17
+|`accountHolderName` has `maxLength: 70`, the SEPA limit for a party name, in the contract and in the pattern document's snippet.
+
+|2026-11-17
+|`lint.examples` is `error` for both OpenAPI and AsyncAPI: no request, response or message is published without an example.
+
+|2026-11-17
+|The API-Only Publisher is a development dependency of `api/`, pinned to 0.19.2; the bundlers are the ones that version pins (Redocly CLI 2.57.0, AsyncAPI CLI 6.2.0).
+`build/dist` is the build output and is not committed.
+
+|2026-11-17
+|The repository's `pre-push` hook runs the Publisher's `check` when a branch changes `api/`; the Publisher's own `init` hook is not used, as it would compete with the repository's hooks.
+
+|2026-11-17
+|`api-build.yml` builds, lints, checks and publishes the library to the `file` channel on every push to a branch that changes `api/`; nothing leaves the runner except the build artifact.
+
+|2026-11-17
+|The tag of `name-iban-match` is `Name IBAN Match`, as in the pattern document; it generates `NameIbanMatchApi`, as `NameIbanMatch` does.
+
+|2026-11-17
+|The lint warnings of `required-string-property-missing-min-length` on strings fixed by `const`, `enum` or `pattern`, and on `completedAt`, are accepted: a `minLength` there cannot be broken on its own, and would only give the TranscriberJ a case it cannot isolate.
+Free-text `detail` members have `minLength: 1`.
+|===
+
+== OpenAPI Generator
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|OpenAPI Generator 7.27.0, `spring` generator, with the options of the brief (`interfaceOnly`, `useTags`, `skipDefaultInterface`, `useBeanValidation`, `openApiNullable=false`, `documentationProvider=source`, `annotationLibrary=none`, `requestMappingMode=api_interface`, `unhandledException`), plus `useSpringBoot4` and `useJackson3` for Spring Boot 4.1.2, as in red-thread.
+The generated code compiles against Spring Boot 4.1.2; its only compiler warnings are the generator's use of the deprecated `org.springframework.lang.Nullable`, for which it has no option.
+
+|2026-11-17
+|Checked on the built contract: `allOf` with `$ref` is flattened into one class that holds the envelope's members; `const` becomes a single-value enum (`ValidationEnum.NAME_IBAN_MATCH`); an optional member is a `@Nullable` field, with no `JsonNullable`; the `oneOf` of the `422` becomes a marker interface that the three problem classes implement.
+
+|2026-11-17
+|The generator crashes on a webhook operation without vendor extensions: a `NullPointerException` in `SpringCodegen.reformatProvideArgsParams`, as the operation's extensions map is null.
+The service sends the webhook and implements nothing for it, so the generator runs with `--global-property apis=,models=,supportingFiles=`, which leaves webhooks out; the contract is not changed to suit the generator.
+`webhooks=false` does not work: a present global property switches its kind on, and its value is a filter of names.
+
+|2026-11-17
+|The generated `validateNameIbanMatch` returns `ResponseEntity<NameIbanMatchResultV1>`, typed by the `200` only.
+`ValidationExecution.run` is generic and builds the `202` with the job as its body behind one unchecked cast, in that one place, covered by unit and contract tests.
+
+|2026-11-17
+|The job resource is implemented per validation: `NameIbanMatchController` implements the generated `getNameIbanMatchJob`, calls `GetValidationJobUseCase` of the validation-execution starter, and maps the job with its own mapper; the starter has no controller of its own.
+
+|2026-11-17
+|`generateJsonIncludeAnnotations=true` with `NON_NULL`, so an absent optional member is left out of a response instead of written as `null`, which the contract does not allow.
+`generateJsonSetterNullsAnnotations=true` with `optionalNonNullPropertyJsonSetterNulls=FAIL`, so an explicit `null` for an optional request member is rejected with `400`.
 |===
 
 == Behaviour of the example
@@ -249,4 +332,10 @@ A surviving mutant is fixed with a test, or excluded only with the maintainer's 
 
 |2026-11-17
 |Seven approved edits bring the pattern document in line with these decisions, one commit each: the example name `name-iban-match`; the `UseCase` suffix; inbound and outbound; commands and sealed results on the inbound port with red-thread's package layout, generated code in each slice's inbound web adapter and a configuration package per slice; the context in the server URL; the `com.arc_e_tect` base package; and the test levels named after the test taxonomy, with features per API operation next to the use-case scenarios.
+
+|2026-11-17
+|Phase 3 edits: `maxLength: 70` on `accountHolderName`; `ValidationExecution` answers `202` with the pending job; and the job resource is declared per validation and implemented by each validation's controller through `GetValidationJobUseCase`, instead of by one `ValidationJobController`.
+
+|2026-11-17
+|The snippets of the generated interface and of the controller stay illustrative: they are not aligned with the generator's exact output, such as its parameter order and `V1` names; the reference implementation shows the real code.
 |===

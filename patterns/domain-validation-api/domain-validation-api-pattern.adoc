@@ -225,6 +225,7 @@ components:
         accountHolderName:
           type: string
           minLength: 1
+          maxLength: 70
 
     NameIbanMatchResult:
       allOf:
@@ -668,10 +669,12 @@ Asynchronous execution has an HTTP part and an application part.
 Both are the same for every validation in every bounded context, and neither contains business logic.
 They are therefore provided as a reusable technical component, such as a Spring Boot starter, that each bounded context can include.
 
-* *Inbound adapter:* `ValidationExecution` reads the `Prefer` and `Idempotency-Key` headers and chooses between `200` with the result and `202` with a `Location`.
+* *Inbound adapter:* `ValidationExecution` reads the `Prefer` and `Idempotency-Key` headers and chooses between `200` with the result and `202` with a `Location` and the pending job.
 * *Application layer:* `SubmitValidationJobUseCase` creates the job, runs the supplied validation in the background, and records completion or failure through a `ValidationJobStore` outbound port.
 Idempotency of submission is enforced here, so it holds no matter which adapter submits the job.
-* *Job resource:* a `ValidationJobController` serves `GET /{context}/v1/validations/{validation-name}/{validation-id}` for all validations of the bounded context.
+`GetValidationJobUseCase` finds a job, for the job resource.
+* *Job resource:* each validation's contract declares `GET /{context}/v1/validations/{validation-name}/{validation-id}`, with a job schema that types the validation's own result, so it is generated into that validation's interface.
+The validation's controller implements it by calling `GetValidationJobUseCase` and mapping the job to the generated type; everything but that mapping is the component's.
 * *Outbound port:* `ValidationJobStore`, for which the bounded context supplies or configures the persistence adapter.
 
 Sharing this component does not reintroduce coupling between bounded contexts.

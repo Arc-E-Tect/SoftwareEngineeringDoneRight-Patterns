@@ -1,0 +1,17 @@
+title: Name IBAN Match Result
+description: >-
+  The result of the name-iban-match validation: the shared envelope, with `validation` pinned to `name-iban-match` and the details of the match.
+  The details are absent when the outcome is `indeterminate`.
+allOf:
+  - $ref: '../../../validation/schemas/ValidationResultV1.yaml'
+  - type: object
+    required:
+      - validation
+    properties:
+      validation:
+        type: string
+        const: name-iban-match
+        examples:
+          - name-iban-match
+      details:
+        $ref: './NameIbanMatchDetailsV1.yaml'

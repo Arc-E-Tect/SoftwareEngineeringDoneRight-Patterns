@@ -24,7 +24,7 @@ The reference implementation is the payments bounded context with one validation
 |The payments service, in Spring Boot, following Hexagonal Architecture: the `name-iban-match` validation as one vertical slice, synchronous and asynchronous.
 
 |link:validation-execution/README.adoc[`validation-execution` →]
-|The reusable asynchronous execution of validations, as a Spring Boot starter: the job lifecycle, idempotent submission, and the job resource.
+|The reusable asynchronous execution of validations, as a Spring Boot starter: the job lifecycle, idempotent submission, and finding a job for the job resource.
 |===
 
 [WARNING]

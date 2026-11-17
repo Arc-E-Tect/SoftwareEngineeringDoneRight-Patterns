@@ -1,0 +1,24 @@
+title: Name IBAN Match Request
+description: A name a payer gives for the holder of an account, and the account's IBAN.
+type: object
+required:
+  - iban
+  - accountHolderName
+properties:
+  iban:
+    title: IBAN
+    description: >-
+      The account's IBAN, electronic format: upper case, without spaces.
+      Its shape is checked against the contract; its checksum and country by the validation, which answers `422` when either is refused.
+    type: string
+    pattern: '^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$'
+    examples:
+      - NL91ABNA0417164300
+  accountHolderName:
+    title: Account Holder Name
+    description: The name the payer gives for the holder of the account; at most 70 characters, the SEPA limit for a party name.
+    type: string
+    minLength: 1
+    maxLength: 70
+    examples:
+      - Jan de Vries

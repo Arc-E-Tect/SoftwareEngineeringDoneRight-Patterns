@@ -1,0 +1,32 @@
+asyncapi: 3.1.0
+info:
+  title: Payments Events
+  version: 0.0.0
+  description: |
+    The events of the payments bounded context.
+
+    This is the contract of the reference implementation of the Domain Validation API pattern.
+    It deliberately declares no security: the reference implementation must not be used as-is in production.
+  contact:
+    name: Arc-E-Tect
+    url: https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+defaultContentType: application/json
+servers:
+  kafka:
+    host: kafka.example.com:9092
+    protocol: kafka
+    description: The payments Kafka broker. The host is an example; the reference implementation is not deployed.
+channels:
+  validationCompletedV1:
+    $ref: '../channels/payments/ValidationCompletedV1.yaml'
+operations:
+  publishValidationCompleted:
+    action: send
+    channel:
+      $ref: '#/channels/validationCompletedV1'
+    summary: Publish a ValidationCompleted event when an asynchronous validation completes or fails.
+    messages:
+      - $ref: '#/channels/validationCompletedV1/messages/validationCompleted'

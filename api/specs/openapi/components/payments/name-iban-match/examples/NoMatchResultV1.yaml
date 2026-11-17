@@ -1,0 +1,11 @@
+summary: The name does not match.
+value:
+  validation: name-iban-match
+  outcome: invalid
+  findings:
+    - rule: NAME_IBAN_MISMATCH
+      severity: error
+      message: The name does not match the name of the account holder.
+      pointer: /accountHolderName
+  details:
+    match: none

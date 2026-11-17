@@ -1,0 +1,7 @@
+summary: The Idempotency-Key was used before with a different body.
+value:
+  type: https://api.example.com/problems/idempotency-key-reused
+  title: Idempotency Key Reused
+  status: 422
+  detail: The Idempotency-Key 3f1c9b0e-6a2d-4f7e-9c41-0b8a5e2d7c11 was used before, with a different request body.
+  instance: /payments/v1/validations/name-iban-match

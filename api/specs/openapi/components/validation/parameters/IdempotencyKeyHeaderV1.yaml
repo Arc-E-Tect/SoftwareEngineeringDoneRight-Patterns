@@ -1,0 +1,13 @@
+name: Idempotency-Key
+in: header
+required: false
+description: >-
+  A key that makes submitting an asynchronous validation idempotent, a lower-case UUID.
+  Required with `Prefer: respond-async`: without it, the request is rejected with `400`.
+  The same key with the same body returns the existing job; the same key with a different body is rejected with `422`.
+  Ignored for a synchronous validation.
+schema:
+  type: string
+  pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+  examples:
+    - 3f1c9b0e-6a2d-4f7e-9c41-0b8a5e2d7c11

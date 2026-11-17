@@ -1,0 +1,12 @@
+title: Outcome
+description: >-
+  The verdict of a validation.
+  `valid` means the input satisfies the rules, `invalid` that it violates them.
+  `indeterminate` means the validation could not reach a verdict, for example because a dependency was unavailable or the confidence was too low.
+type: string
+enum:
+  - valid
+  - invalid
+  - indeterminate
+examples:
+  - valid

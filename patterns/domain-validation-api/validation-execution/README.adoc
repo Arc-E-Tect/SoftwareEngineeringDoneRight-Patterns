@@ -12,7 +12,7 @@
 ====
 
 The reusable asynchronous execution of validations from the link:../domain-validation-api-pattern.adoc[Domain Validation API pattern →], as a Spring Boot starter.
-It chooses between answering a validation at once and running it as a job, makes submitting a job idempotent, keeps track of the job's lifecycle, and serves the job resource.
+It chooses between answering a validation at once and running it as a job, makes submitting a job idempotent, keeps track of the job's lifecycle, and finds a job for the job resource, which each validation's controller serves.
 It contains no business logic: a bounded context includes it, and supplies its own validations and job store.
 
 The link:../reference-implementation/README.adoc[reference implementation →] uses it for the `name-iban-match` validation.
