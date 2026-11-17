@@ -1,0 +1,10 @@
+title: Validation Job Status
+description: >-
+  Where an asynchronous validation job is: `pending` until it has run, then `completed` with a result, or `failed` with a problem.
+type: string
+enum:
+  - pending
+  - completed
+  - failed
+examples:
+  - pending

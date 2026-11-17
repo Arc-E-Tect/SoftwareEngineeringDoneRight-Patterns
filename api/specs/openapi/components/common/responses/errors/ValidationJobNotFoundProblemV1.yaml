@@ -1,0 +1,31 @@
+title: Validation Job Not Found Problem
+description: No validation job of this validation has the given identifier.
+allOf:
+  - $ref: ./ProblemDetailsV1.yaml
+  - type: object
+    required:
+      - type
+      - title
+      - status
+      - detail
+    properties:
+      type:
+        type: string
+        const: https://api.example.com/problems/validation-job-not-found
+        examples:
+          - https://api.example.com/problems/validation-job-not-found
+      title:
+        type: string
+        const: Validation Job Not Found
+        examples:
+          - Validation Job Not Found
+      status:
+        type: integer
+        const: 404
+        examples:
+          - 404
+      detail:
+        type: string
+        minLength: 1
+        examples:
+          - No name-iban-match validation job has the identifier 8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f.

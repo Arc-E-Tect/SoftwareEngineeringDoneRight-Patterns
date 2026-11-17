@@ -1,0 +1,7 @@
+summary: The IBAN has the wrong check digits.
+value:
+  type: https://api.example.com/payments/problems/invalid-iban-checksum
+  title: Invalid IBAN Checksum
+  status: 422
+  detail: The check digits of the IBAN are wrong.
+  instance: /payments/v1/validations/name-iban-match

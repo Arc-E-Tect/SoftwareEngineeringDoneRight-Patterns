@@ -1,0 +1,7 @@
+summary: The name matches exactly.
+value:
+  validation: name-iban-match
+  outcome: valid
+  findings: []
+  details:
+    match: exact

@@ -1,0 +1,17 @@
+description: >-
+  Accepted: the validation runs as a job.
+  The job is at `Location`; read it after `Retry-After` seconds, or wait for the ValidationCompleted event.
+headers:
+  Location:
+    $ref: '../headers/LocationV1.yaml'
+  Retry-After:
+    $ref: '../headers/RetryAfterV1.yaml'
+  Cache-Control:
+    $ref: '../headers/CacheControlV1.yaml'
+content:
+  application/json:
+    schema:
+      $ref: '../schemas/ValidationJobV1.yaml'
+    examples:
+      Pending:
+        $ref: '../examples/PendingValidationJobV1.yaml'

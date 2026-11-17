@@ -1,0 +1,27 @@
+title: Validation Result
+description: >-
+  The envelope every validation result shares, in every bounded context.
+  A validation's own result schema extends it with that validation's details, and pins `validation` to its name.
+type: object
+required:
+  - validation
+  - outcome
+properties:
+  validation:
+    title: Validation
+    description: >-
+      The name of the validation that produced this result.
+      This is an open set: new validations add new values.
+      Each validation's result schema pins its own value with `const`.
+    type: string
+    minLength: 1
+    examples:
+      - name-iban-match
+  outcome:
+    $ref: './OutcomeV1.yaml'
+  findings:
+    title: Findings
+    description: What the validation found, independent of the outcome; a `valid` outcome can carry warnings.
+    type: array
+    items:
+      $ref: './FindingV1.yaml'

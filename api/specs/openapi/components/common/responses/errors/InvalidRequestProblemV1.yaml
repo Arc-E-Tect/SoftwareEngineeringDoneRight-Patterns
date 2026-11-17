@@ -1,0 +1,37 @@
+title: Invalid Request Problem
+description: The request is malformed, or breaks the contract.
+allOf:
+  - $ref: ./ProblemDetailsV1.yaml
+  - type: object
+    required:
+      - type
+      - title
+      - status
+      - detail
+    properties:
+      type:
+        type: string
+        const: https://api.example.com/problems/invalid-request
+        examples:
+          - https://api.example.com/problems/invalid-request
+      title:
+        type: string
+        const: Invalid Request
+        examples:
+          - Invalid Request
+      status:
+        type: integer
+        const: 400
+        examples:
+          - 400
+      detail:
+        type: string
+        minLength: 1
+        examples:
+          - The request does not match the contract.
+      errors:
+        title: Errors
+        description: Each way in which the request breaks the contract.
+        type: array
+        items:
+          $ref: ./ErrorDetailV1.yaml

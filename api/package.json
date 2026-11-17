@@ -1,0 +1,12 @@
+{
+  "name": "patterns-api",
+  "private": true,
+  "description": "The API specifications of the design patterns in this repository.",
+  "license": "MIT",
+  "scripts": {
+    "apionly": "api-only-publisher"
+  },
+  "devDependencies": {
+    "@arc-e-tect/api-only-publisher": "0.19.2"
+  }
+}

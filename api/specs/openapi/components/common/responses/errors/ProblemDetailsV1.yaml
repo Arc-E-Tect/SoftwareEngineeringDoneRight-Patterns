@@ -1,0 +1,40 @@
+title: Problem Details
+description: >-
+  A machine-readable problem detail, per RFC 9457.
+  Each problem type composes this schema with `allOf`, and fixes `type`, `title` and `status` to its own values.
+type: object
+properties:
+  type:
+    title: Type
+    description: A URI reference that identifies the problem type.
+    type: string
+    format: uri
+    default: about:blank
+    examples:
+      - https://api.example.com/problems/invalid-request
+  title:
+    title: Title
+    description: A short, human-readable summary of the problem type.
+    type: string
+    examples:
+      - Invalid Request
+  status:
+    title: Status
+    description: The HTTP status code of this occurrence of the problem.
+    type: integer
+    examples:
+      - 400
+  detail:
+    title: Detail
+    description: A human-readable explanation of this occurrence of the problem.
+    type: string
+    examples:
+      - The request does not match the contract.
+  instance:
+    title: Instance
+    description: A URI reference that identifies this occurrence of the problem.
+    type: string
+    format: uri-reference
+    examples:
+      - /payments/v1/validations/name-iban-match
+additionalProperties: true

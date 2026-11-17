@@ -1,0 +1,12 @@
+summary: The name is close to the registered name, which is returned so the payer can correct it.
+value:
+  validation: name-iban-match
+  outcome: invalid
+  findings:
+    - rule: NAME_IBAN_MISMATCH
+      severity: error
+      message: The name is close to, but not the same as, the name of the account holder.
+      pointer: /accountHolderName
+  details:
+    match: close
+    registeredName: Jan de Vries

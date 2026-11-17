@@ -1,0 +1,6 @@
+title: Validation Id
+description: The identifier of an asynchronous validation job, a lower-case UUID.
+type: string
+pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+examples:
+  - 8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f

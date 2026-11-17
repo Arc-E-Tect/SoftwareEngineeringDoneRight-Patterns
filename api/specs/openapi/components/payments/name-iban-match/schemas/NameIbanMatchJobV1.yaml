@@ -1,0 +1,17 @@
+title: Name IBAN Match Job
+description: >-
+  An asynchronous name-iban-match validation: the shared job, with `validation` pinned to `name-iban-match` and the result typed.
+  The result is present only when the job's status is `completed`.
+allOf:
+  - $ref: '../../../validation/schemas/ValidationJobV1.yaml'
+  - type: object
+    required:
+      - validation
+    properties:
+      validation:
+        type: string
+        const: name-iban-match
+        examples:
+          - name-iban-match
+      result:
+        $ref: './NameIbanMatchResultV1.yaml'

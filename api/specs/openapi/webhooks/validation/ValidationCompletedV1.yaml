@@ -1,0 +1,22 @@
+post:
+  security: []
+  tags:
+    - ValidationEvents
+  operationId: validationCompleted
+  summary: Notify a subscriber that an asynchronous validation has finished.
+  description: >-
+    Sent once, best effort, to every subscriber URL registered out of band, when a validation job completes or fails.
+    The body refers to the job; the subscriber reads the result from the job resource at `location`.
+    The same event is published to the payments.validation.completed.v1 topic.
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../components/validation/schemas/ValidationCompletedEventV1.yaml'
+        examples:
+          Completed:
+            $ref: '../../components/validation/examples/ValidationCompletedEventV1.yaml'
+  responses:
+    '204':
+      description: The subscriber received the notification.

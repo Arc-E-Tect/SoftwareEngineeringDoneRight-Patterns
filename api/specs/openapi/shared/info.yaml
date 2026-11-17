@@ -1,0 +1,15 @@
+title: Payments API
+version: '0.0.0'
+contact:
+  name: Arc-E-Tect
+  url: https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns
+license:
+  name: MIT
+  url: https://opensource.org/licenses/MIT
+description: |
+  The validations of the payments bounded context.
+
+  This is the contract of the reference implementation of the Domain Validation API pattern.
+  It deliberately declares no security: the reference implementation must not be used as-is in production.
+
+  {{validationConventions}}

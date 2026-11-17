@@ -1,0 +1,42 @@
+title: Validation Completed Event
+description: >-
+  An asynchronous validation has finished.
+  The event refers to the job and carries no input and no result: the result is read from the job resource at `location`.
+  It is published to the payments.validation.completed.v1 topic and sent to the subscribers of the validationCompleted webhook.
+type: object
+required:
+  - validationId
+  - validation
+  - status
+  - completedAt
+  - location
+properties:
+  validationId:
+    $ref: './ValidationIdV1.yaml'
+  validation:
+    title: Validation
+    description: The name of the validation the job ran.
+    type: string
+    minLength: 1
+    examples:
+      - name-iban-match
+  status:
+    $ref: './ValidationJobStatusV1.yaml'
+  outcome:
+    description: The outcome of the validation; present only when the job completed.
+    $ref: './OutcomeV1.yaml'
+  completedAt:
+    title: Completed At
+    description: When the job finished, as an RFC 3339 timestamp.
+    type: string
+    format: date-time
+    examples:
+      - '2026-11-17T10:35:02Z'
+  location:
+    title: Location
+    description: The path of the job resource, relative to the server.
+    type: string
+    format: uri-reference
+    minLength: 1
+    examples:
+      - /payments/v1/validations/name-iban-match/8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f

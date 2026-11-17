@@ -1,0 +1,44 @@
+title: Finding
+description: One thing a validation found about the input.
+type: object
+required:
+  - rule
+  - severity
+properties:
+  rule:
+    title: Rule
+    description: The stable, machine-readable code of the rule this finding is about.
+    type: string
+    minLength: 1
+    examples:
+      - NAME_IBAN_MISMATCH
+  severity:
+    title: Severity
+    description: How much the finding matters; an `error` makes the outcome `invalid`.
+    type: string
+    enum:
+      - error
+      - warning
+      - info
+    examples:
+      - error
+  message:
+    title: Message
+    description: A human-readable explanation; not meant for programmatic use.
+    type: string
+    examples:
+      - The name does not match the name of the account holder.
+  pointer:
+    title: Pointer
+    description: A JSON Pointer (RFC 6901) into the submitted input that this finding refers to.
+    type: string
+    examples:
+      - /accountHolderName
+  confidence:
+    title: Confidence
+    description: How certain the finding is, from 0 to 1; present only for validations whose verdict is probabilistic.
+    type: number
+    minimum: 0
+    maximum: 1
+    examples:
+      - 0.93

@@ -1,0 +1,106 @@
+post:
+  security: []
+  tags:
+    - Name IBAN Match
+  operationId: validateNameIbanMatch
+  summary: Check whether a name matches the name of the holder of an account.
+  description: >-
+    Checks the name a payer gives against the name registered for the account with the given IBAN.
+    Safe and idempotent: this operation changes no state.
+    POST is used only because the input needs a request body, and must never appear in a URL.
+    With `Prefer: respond-async` and an `Idempotency-Key`, the validation runs as a job instead, and the response is `202 Accepted`.
+  x-idempotent: true
+  x-validation: true
+  parameters:
+    - $ref: '../../../components/validation/parameters/PreferHeaderV1.yaml'
+    - $ref: '../../../components/validation/parameters/IdempotencyKeyHeaderV1.yaml'
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: '../../../components/payments/name-iban-match/schemas/NameIbanMatchRequestV1.yaml'
+        examples:
+          ExactMatch:
+            $ref: '../../../components/payments/name-iban-match/examples/ExactMatchRequestV1.yaml'
+          CloseMatch:
+            $ref: '../../../components/payments/name-iban-match/examples/CloseMatchRequestV1.yaml'
+          NoMatch:
+            $ref: '../../../components/payments/name-iban-match/examples/NoMatchRequestV1.yaml'
+          UnavailableAccount:
+            $ref: '../../../components/payments/name-iban-match/examples/UnavailableAccountRequestV1.yaml'
+          UnsupportedCountry:
+            $ref: '../../../components/payments/name-iban-match/examples/UnsupportedCountryRequestV1.yaml'
+          InvalidChecksum:
+            $ref: '../../../components/payments/name-iban-match/examples/InvalidChecksumRequestV1.yaml'
+        x-transcriberj-examples:
+          required: ExactMatch
+  responses:
+    '200':
+      description: The validation completed; the outcome is in the body.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/json:
+          schema:
+            $ref: '../../../components/payments/name-iban-match/schemas/NameIbanMatchResultV1.yaml'
+          examples:
+            ExactMatch:
+              $ref: '../../../components/payments/name-iban-match/examples/ExactMatchResultV1.yaml'
+            CloseMatch:
+              $ref: '../../../components/payments/name-iban-match/examples/CloseMatchResultV1.yaml'
+            NoMatch:
+              $ref: '../../../components/payments/name-iban-match/examples/NoMatchResultV1.yaml'
+            Indeterminate:
+              $ref: '../../../components/payments/name-iban-match/examples/IndeterminateResultV1.yaml'
+    '202':
+      $ref: '../../../components/validation/responses/ValidationAcceptedV1.yaml'
+    '400':
+      description: >-
+        The request is malformed or breaks the contract,
+        or it prefers `respond-async` without an `Idempotency-Key`.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../../../components/common/responses/errors/InvalidRequestProblemV1.yaml'
+          examples:
+            InvalidRequest:
+              $ref: '../../../components/common/examples/InvalidRequestProblemV1.yaml'
+    '422':
+      description: >-
+        The request is well-formed, but cannot be processed:
+        the IBAN's check digits are wrong, the scheme does not cover its country,
+        or the `Idempotency-Key` was used before with a different body.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            oneOf:
+              - $ref: '../../../components/payments/name-iban-match/problems/InvalidIbanChecksumProblemV1.yaml'
+              - $ref: '../../../components/payments/name-iban-match/problems/UnsupportedCountryProblemV1.yaml'
+              - $ref: '../../../components/common/responses/errors/IdempotencyKeyReusedProblemV1.yaml'
+          examples:
+            InvalidIbanChecksum:
+              $ref: '../../../components/payments/name-iban-match/examples/InvalidIbanChecksumProblemV1.yaml'
+            UnsupportedCountry:
+              $ref: '../../../components/payments/name-iban-match/examples/UnsupportedCountryProblemV1.yaml'
+            IdempotencyKeyReused:
+              $ref: '../../../components/common/examples/IdempotencyKeyReusedProblemV1.yaml'
+    '500':
+      description: An unexpected server-side error occurred.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../../../components/common/responses/errors/InternalServerProblemV1.yaml'
+          examples:
+            InternalServerError:
+              $ref: '../../../components/common/examples/InternalServerProblemV1.yaml'

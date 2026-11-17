@@ -1,0 +1,23 @@
+title: Error Detail
+description: One way in which a request breaks the contract.
+type: object
+required:
+  - message
+  - context
+properties:
+  message:
+    title: Message
+    description: What is wrong.
+    type: string
+    minLength: 5
+    maxLength: 254
+    examples:
+      - must not be blank
+  context:
+    title: Context
+    description: Where it is wrong, as a JSON Pointer into the request body or as the name of a header or parameter.
+    type: string
+    minLength: 1
+    maxLength: 254
+    examples:
+      - /accountHolderName

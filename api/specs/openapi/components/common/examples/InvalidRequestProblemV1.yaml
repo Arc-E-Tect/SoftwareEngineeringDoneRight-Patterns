@@ -1,0 +1,10 @@
+summary: The account holder's name is missing.
+value:
+  type: https://api.example.com/problems/invalid-request
+  title: Invalid Request
+  status: 400
+  detail: The request does not match the contract.
+  instance: /payments/v1/validations/name-iban-match
+  errors:
+    - message: must not be null
+      context: /accountHolderName

@@ -1,0 +1,63 @@
+# apionly.yaml
+#
+# The specification library of this repository's patterns, built with the
+# API-Only Publisher. Each pattern is one target; a fragment that more than one
+# pattern needs is written once and referenced from each.
+
+schemaVersion: 1
+
+# The OpenAPI and AsyncAPI trees share one root, because they share fragments:
+# the AsyncAPI ValidationCompleted event's payload is the OpenAPI tree's
+# ValidationCompletedEventV1, which the webhook sends too.
+sources:
+  root: specs
+  openapi: openapi
+  asyncapi: asyncapi
+
+defaults:
+  openapi:
+    # The reference API's lint configuration, unchanged.
+    lint: .redocly.lint.yaml
+    outputName: openapi.yaml
+  asyncapi:
+    outputName: asyncapi.yaml
+  placeholders:
+    # A {{token}} with no matching Markdown file fails the build.
+    strict: true
+
+# Nothing here is hand-written or committed: build/ is ignored by the
+# repository's .gitignore, dist included.
+build:
+  staging: build/staging
+  dist: build/dist
+
+# Every operation and every message carries an example.
+# The AsyncAPI one is what the TranscriberJ's Microcks emitter tests the event
+# with; the OpenAPI ones are what its contract cases send and what the
+# generated documentation shows.
+lint:
+  examples:
+    asyncapi: error
+    openapi: error
+
+# The bundlers this Publisher version pins, so a document changes only when
+# something in this library does.
+toolchain:
+  redocly: "@redocly/cli@2.57.0"
+  asyncapi: "@asyncapi/cli@6.2.0"
+
+# The reference implementation's build subscribes to this directory.
+# No registry is involved, and nothing is published outside the build.
+channels:
+  file:
+    directory: build/publish
+    clean: true
+
+targets:
+  # The Domain Validation API pattern: the payments bounded context, with the
+  # name-iban-match validation, synchronous and asynchronous.
+  domain-validation-api:
+    openapi:
+      bundle: bundles/domain-validation-api_openapi_structure.yaml
+    asyncapi:
+      bundle: bundles/domain-validation-api_asyncapi_structure.yaml

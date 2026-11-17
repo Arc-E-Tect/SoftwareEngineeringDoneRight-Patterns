@@ -1,0 +1,6 @@
+name: validationId
+in: path
+required: true
+description: The identifier of the asynchronous validation job, as the `Location` of its `202 Accepted` gave it.
+schema:
+  $ref: '../schemas/ValidationIdV1.yaml'
