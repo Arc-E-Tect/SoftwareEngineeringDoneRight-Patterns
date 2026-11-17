@@ -47,15 +47,15 @@ class IbanTest {
 
     @ParameterizedTest(name = "\"{0}\"")
     @ValueSource(strings = {"", "nl91abna0417164300", "NL91 ABNA 0417 1643 00", "NLAAABNA0417164300", "1191ABNA0417164300",
-            "NL91ABNA041716", "NL91ABNA0417164300123456789012345", "NL91ABNA041716430!"})
+            "NL91ABNA041716", "NL91ABNA04171643001234567890ABCDEFG", "NL91ABNA041716430!"})
     @DisplayName("is refused when it does not have the shape of an IBAN in electronic format")
     void isRefusedWithoutTheShapeOfAnIban(String value) {
         assertThrows(IllegalArgumentException.class, () -> new Iban(value));
     }
 
     @ParameterizedTest(name = "{0}")
-    @ValueSource(strings = {"NL91ABNA041716430", "NL91ABNA04171643001234567890ABCD"})
-    @DisplayName("is accepted at the shortest and the longest shape")
+    @ValueSource(strings = {"NL91ABNA0417164", "NL91ABNA04171643001234567890ABCDEF"})
+    @DisplayName("is accepted at the shortest and the longest shape: 11 and 30 characters after the check digits")
     void isAcceptedAtTheBoundsOfTheShape(String value) {
         assertEquals(value, new Iban(value).value());
     }
