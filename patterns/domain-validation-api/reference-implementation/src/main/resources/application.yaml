@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: payments
+  mvc:
+    # Errors are answered as RFC 9457 Problem Details, application/problem+json.
+    problemdetails:
+      enabled: true
+
+payments:
+  validation:
+    name-iban-match:
+      # The countries whose accounts the payee verification scheme covers.
+      supported-countries: [NL, BE, DE]
+      # The simulated payee verification scheme, with the accounts of the contract's examples.
+      scheme:
+        timeout: 2s
+        accounts:
+          - iban: NL91ABNA0417164300
+            registered-name: Jan de Vries
+          # The scheme cannot answer for this account: the verdict is indeterminate.
+          - iban: NL20INGB0001234567
+            registered-name: Anna Bakker
+            available: false
+          # The scheme answers for this account after the timeout: the verdict is indeterminate.
+          - iban: DE89370400440532013000
+            registered-name: Anna Schmidt
+            response-time: 5s

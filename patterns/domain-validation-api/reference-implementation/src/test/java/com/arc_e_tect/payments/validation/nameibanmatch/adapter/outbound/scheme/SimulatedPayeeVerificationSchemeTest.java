@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -92,8 +93,27 @@ class SimulatedPayeeVerificationSchemeTest {
     }
 
     @Test
+    @DisplayName("knows the accounts of its settings")
+    void knowsTheAccountsOfItsSettings() {
+        SimulatedPayeeVerificationScheme configured = new SimulatedPayeeVerificationScheme(new PayeeVerificationSchemeProperties(
+                Duration.ofSeconds(2), List.of(new PayeeVerificationSchemeProperties.Account(JAN, "Jan de Vries", Duration.ZERO, true))));
+
+        assertEquals(Optional.of("Jan de Vries"), configured.registeredNameOf(JAN));
+    }
+
+    @Test
+    @DisplayName("is refused with settings that have an account twice")
+    void isRefusedWithAnAccountTwice() {
+        PayeeVerificationSchemeProperties twice = new PayeeVerificationSchemeProperties(Duration.ofSeconds(2), List.of(
+                new PayeeVerificationSchemeProperties.Account(JAN, "Jan de Vries", Duration.ZERO, true),
+                new PayeeVerificationSchemeProperties.Account(JAN, "Jan Jansen", Duration.ZERO, true)));
+
+        assertThrows(IllegalStateException.class, () -> new SimulatedPayeeVerificationScheme(twice));
+    }
+
+    @Test
     @DisplayName("is refused without a table of accounts")
     void isRefusedWithoutATable() {
-        assertThrows(NullPointerException.class, () -> new SimulatedPayeeVerificationScheme(null));
+        assertThrows(NullPointerException.class, () -> new SimulatedPayeeVerificationScheme((Map<String, SimulatedAccount>) null));
     }
 }

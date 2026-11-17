@@ -1,20 +1,32 @@
 package com.arc_e_tect.payments.validation.nameibanmatch.adapter.outbound.scheme;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * A deterministic stand-in for the payee verification scheme: a table of accounts by IBAN.
  * It takes an account's response time before it answers, really, so that a slow account shows
  * the client's timeout at work, and it fails for an account that is unavailable.
  */
+@Component
 public class SimulatedPayeeVerificationScheme implements PayeeVerificationScheme {
 
     private final Map<String, SimulatedAccount> accounts;
 
     public SimulatedPayeeVerificationScheme(Map<String, SimulatedAccount> accounts) {
         this.accounts = Map.copyOf(Objects.requireNonNull(accounts, "accounts"));
+    }
+
+    /** The scheme with the configured accounts; an account configured twice stops the service from starting. */
+    @Autowired
+    public SimulatedPayeeVerificationScheme(PayeeVerificationSchemeProperties properties) {
+        this(properties.accounts().stream().collect(Collectors.toMap(
+                PayeeVerificationSchemeProperties.Account::iban, PayeeVerificationSchemeProperties.Account::simulated)));
     }
 
     @Override

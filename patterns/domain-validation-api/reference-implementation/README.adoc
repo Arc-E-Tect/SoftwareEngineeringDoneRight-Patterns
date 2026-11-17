@@ -24,12 +24,12 @@ It is a Spring Boot service that follows Hexagonal Architecture, with the valida
 
 [NOTE]
 ====
-The implementation is being built test-first, one slice at a time: so far the verdict model, the `name-iban-match` domain, its use case with the domain service that implements it, and the client of a simulated payee verification scheme.
+The implementation is being built test-first, one slice at a time: so far the verdict model, the `name-iban-match` domain, its use case with the domain service that implements it, the client of a simulated payee verification scheme, and the controller, answering synchronously.
 ====
 
 == Build and test
 
-Requirements: Java 25, and a GitHub token that can read packages.
+Requirements: Java 25, Node 24 with npm, and a GitHub token that can read packages.
 The Gradle wrapper downloads Gradle itself, and the build provisions the Java toolchain when it is missing.
 
 The Domain Validation API rule pack is published on GitHub Packages, which needs a token even for a public package.
@@ -42,6 +42,10 @@ gpr.key=<the token>
 ----
 
 In CI, the workflow passes the `GH_READ_PACKAGE_TOKEN` secret instead.
+
+The service implements the `domain-validation-api` contract, at the `apiContractVersion` in `gradle.properties`.
+The build publishes it from the specification library in link:../../../api/README.adoc[`api/` →] with the API-Only Publisher, which is why it needs Node, and the API-Only Subscriber fetches it and checks it against `apionly.lock`.
+OpenAPI Generator generates the controller's interface and models from it into `build/`.
 
 [source,console]
 ----
@@ -74,7 +78,25 @@ Their reports are in `build/reports/architecture-validator`.
 
 == Run
 
-Running the service becomes possible once the implementation exists; this section will then say how.
+[source,console]
+----
+./gradlew bootRun
+----
+
+The service listens on port 8080, under `/payments`.
+Its payee verification scheme is simulated; `src/main/resources/application.yaml` lists the accounts it knows, which are those of the contract's examples, and which countries it covers:
+
+[source,console]
+----
+curl -s -X POST http://localhost:8080/payments/v1/validations/name-iban-match \
+     -H 'Content-Type: application/json' \
+     -d '{"iban": "NL91ABNA0417164300", "accountHolderName": "Jan de Vris"}'
+----
+
+[source,json]
+----
+{"validation":"name-iban-match","outcome":"invalid","details":{"match":"close","registeredName":"Jan de Vries"},"findings":[{"rule":"NAME_IBAN_MISMATCH","severity":"error","message":"The name is close to, but not the same as, the name of the account holder.","pointer":"/accountHolderName"}]}
+----
 
 == Versioning
 
