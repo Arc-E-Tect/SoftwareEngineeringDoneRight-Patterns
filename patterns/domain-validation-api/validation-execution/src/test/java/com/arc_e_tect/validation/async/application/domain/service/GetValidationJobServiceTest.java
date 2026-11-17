@@ -24,17 +24,17 @@ class GetValidationJobServiceTest {
 
     private final InMemoryValidationJobStore store = new InMemoryValidationJobStore();
     private final GetValidationJobService service = new GetValidationJobService(store);
-    private final ValidationJob pending = store.claim(ValidationJob.pending("name-iban-match", "key", "request"));
+    private final ValidationJob pending = store.claim(ValidationJob.pending("name-iban-match", "key", "request", "/validations"));
 
     private Optional<ValidationJobView> find(String validation, String validationId) {
         return service.find(new GetValidationJobCommand(validation, validationId));
     }
 
     @Test
-    @DisplayName("finds a pending job, without a result or a problem")
+    @DisplayName("finds a pending job, with its location and without a result or a problem")
     void findsAPendingJob() {
         assertEquals(Optional.of(new ValidationJobView(pending.validationId(), "name-iban-match",
-                ValidationJobView.Status.PENDING, Optional.empty(), Optional.empty())), find("name-iban-match", pending.validationId()));
+                "/validations/" + pending.validationId(), ValidationJobView.Status.PENDING, Optional.empty(), Optional.empty())), find("name-iban-match", pending.validationId()));
     }
 
     @Test
