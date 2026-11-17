@@ -7,6 +7,16 @@
 `↗` leads to an external site, `→` to another file in this repository, and `§` to a section of this same file.
 ====
 
+[WARNING]
+.Reference implementations are not production software
+====
+The reference implementations in this repository show how a pattern is built, and nothing more.
+They deliberately omit security: there is no authentication, no authorisation, no transport security, no secrets handling and no hardening of the runtime.
+Do not use them as-is in production.
+
+This applies to the software the reference implementations produce, not to this repository: the repository itself, its build and its pipelines are secured, as link:../SECURITY.md[SECURITY.md →] describes.
+====
+
 Every pattern has its own folder, with a `README.adoc` that introduces it, the pattern document itself, and the projects of its reference implementation.
 
 [cols="2,3,3",options="header"]

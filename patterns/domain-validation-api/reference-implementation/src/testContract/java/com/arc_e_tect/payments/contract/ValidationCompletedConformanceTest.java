@@ -10,6 +10,7 @@ import io.github.microcks.testcontainers.connection.KafkaConnection;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.DisplayName;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.testcontainers.kafka.KafkaContainer;
@@ -27,6 +28,7 @@ import java.util.UUID;
  * the starter's Kafka publisher, as the service runs it, publishes the completion of a job, and
  * Microcks checks it against the contract's AsyncAPI document.
  */
+@DisplayName("The contract of the event on payments.validation.completed.v1")
 class ValidationCompletedConformanceTest implements AsyncConformanceHarness {
 
     private static final String BROKER_ON_THE_NETWORK = "kafka:19092";

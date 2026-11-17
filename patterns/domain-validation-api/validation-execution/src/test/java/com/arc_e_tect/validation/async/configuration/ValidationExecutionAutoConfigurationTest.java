@@ -19,6 +19,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -166,27 +167,53 @@ class ValidationExecutionAutoConfigurationTest {
             assertInstanceOf(WebhookValidationCompletedPublisher.class, configuration.webhookValidationCompletedPublisher(properties, json));
         }
 
-        @Test
-        @DisplayName("gives up on a subscriber that does not answer within the timeout")
-        void givesUpOnASlowSubscriber() throws IOException {
-            HttpServer slow = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
-            slow.createContext("/", exchange -> {
-                try {
-                    Thread.sleep(Duration.ofSeconds(10));
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                }
-                exchange.close();
-            });
-            slow.start();
-            try {
-                RestClient client = ValidationExecutionAutoConfiguration.webhookClient(Duration.ofMillis(200));
-                URI subscriber = URI.create("http://localhost:" + slow.getAddress().getPort() + "/hooks");
+        @Nested
+        @DisplayName("for a subscriber that does not answer within the timeout")
+        class ForASlowSubscriber {
 
-                assertTimeoutPreemptively(Duration.ofSeconds(5), () -> assertThrows(ResourceAccessException.class,
-                        () -> client.post().uri(subscriber).body("{}").retrieve().toBodilessEntity()));
-            } finally {
+            private HttpServer slow;
+            private final RestClient client = ValidationExecutionAutoConfiguration.webhookClient(Duration.ofMillis(200));
+
+            @BeforeEach
+            void startTheSubscriber() throws IOException {
+                slow = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+                slow.createContext("/", exchange -> {
+                    try {
+                        Thread.sleep(Duration.ofSeconds(10));
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                    }
+                    exchange.close();
+                });
+                slow.start();
+            }
+
+            @AfterEach
+            void stopTheSubscriber() {
                 slow.stop(0);
+            }
+
+            private void post() {
+                client.post().uri(URI.create("http://localhost:" + slow.getAddress().getPort() + "/hooks")).body("{}").retrieve()
+                        .toBodilessEntity();
+            }
+
+            @Test
+            @DisplayName("gives up on it long before it would answer")
+            void givesUpInTime() {
+                assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+                    try {
+                        post();
+                    } catch (ResourceAccessException givenUp) {
+                        // That it gives up is the next test's concern; this one is about when.
+                    }
+                });
+            }
+
+            @Test
+            @DisplayName("reports that it could not deliver")
+            void reportsTheFailure() {
+                assertThrows(ResourceAccessException.class, this::post);
             }
         }
     }

@@ -368,7 +368,8 @@ Close and no match give finding `NAME_IBAN_MISMATCH` (error, pointer `/accountHo
 |One outbound port, `AccountHolderRegistry`, with one simulated adapter, `PayeeVerificationSchemeClient`; no own-bank repository.
 
 |2026-11-17
-|The simulation is deterministic: a configured table maps IBAN to registered name; per IBAN an account can be slow (configured delay) or unavailable. A port timeout turns slow or unavailable into `indeterminate`.
+|The simulation is deterministic: a configured table maps IBAN to registered name; per IBAN an account can be slow (configured delay) or unavailable.
+A port timeout turns slow or unavailable into `indeterminate`.
 
 |2026-11-17
 |A well-formed IBAN that the scheme does not know gives `invalid` with match `none`.
@@ -481,7 +482,8 @@ A surviving mutant is fixed with a test, or excluded only with the maintainer's 
 `failWhenNoMutations` is off only so that the empty skeleton builds.
 
 |2026-11-17
-|BDD with Cucumber-JVM on the JUnit Platform Suite in `testSystem`: Spring Boot on a random port over real HTTP, WireMock receiving webhooks, Kafka in Docker through Testcontainers. One feature per API operation, plus one for the webhook and one for the event.
+|BDD with Cucumber-JVM on the JUnit Platform Suite in `testSystem`: Spring Boot on a random port over real HTTP, WireMock receiving webhooks, Kafka in Docker through Testcontainers.
+One feature per API operation, plus one for the webhook and one for the event.
 
 |2026-11-17
 |Contract tests: HTTP through TranscriberJ's REST Docs emitter, the Kafka event through its Microcks emitter, both in `testContract`; Docker is required.
@@ -511,6 +513,9 @@ The TranscriberJ is to learn that a header can select a response; the cases are 
 |2026-11-17
 |The system tests run Kafka as `apache/kafka-native:4.2.2`, the version of the Kafka clients Spring Boot manages, through Spring Boot's service connection, and create the topic up front as a provisioned topic would be; WireMock plays two webhook subscribers, one of which answers `503`.
 A step waits at most 10 seconds for the webhook or the event about its scenario's job, which it tells apart by the `validationId`.
+
+|2026-11-18
+|Phase 6 verifies the work against every requirement of the brief, on a fresh clone with no build cache, and records the result in link:verification-report.adoc[`docs/verification-report.adoc` →], with the evidence and the approved exceptions.
 |===
 
 == Pattern document
@@ -530,4 +535,7 @@ A step waits at most 10 seconds for the webhook or the event about its scenario'
 
 |2026-11-17
 |The snippets of the generated interface and of the controller stay illustrative: they are not aligned with the generator's exact output, such as its parameter order and `V1` names; the reference implementation shows the real code.
+
+|2026-11-18
+|Phase 6 edit: the controller's `ValidationExecution.run` call is given the use case's command and the function that reads a result's outcome, with a sentence on why each; the snippet otherwise stays illustrative.
 |===
