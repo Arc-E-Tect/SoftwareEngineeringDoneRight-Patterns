@@ -11,6 +11,7 @@ plugins {
     id 'jacoco'
     alias(libs.plugins.spring.boot.sedr)
     alias(libs.plugins.api.only.subscriber.sedr)
+    alias(libs.plugins.api.only.transcriberj.sedr)
     alias(libs.plugins.openapi.generator.sedr)
     alias(libs.plugins.pitest.sedr)
     alias(libs.plugins.architecture.validator.sedr)
@@ -149,6 +150,26 @@ apiOnlySubscriber {
     subscribe(contractTarget)
 }
 
+// The API-Only TranscriberJ derives the contract cases from the subscribed contract, and generates
+// the contract tests the testContract suite runs: Spring REST Docs tests of every HTTP case, and a
+// Microcks conformance test of the event the service publishes.
+apiOnlyTranscriberJ {
+    subscription(contractTarget) {
+        basePackage = 'com.arc_e_tect.payments.contract'
+        sourceSets = ['testContract']
+        emitter('restdocs') {
+            options = [tests: 'true']
+        }
+        emitter('microcks') {
+        }
+    }
+}
+
+dependencies {
+    transcriberjEmitters libs.api.only.transcriberj.restdocs.sedr
+    transcriberjEmitters libs.api.only.transcriberj.microcks.sedr
+}
+
 tasks.withType(com.arc_e_tect.gradle.apionly.subscriber.FetchApiSpecTask).configureEach {
     dependsOn(publishApiContract)
 }
@@ -216,11 +237,19 @@ testing {
         }
 
         // Contract tests: the running service against the subscribed contract, from the TranscriberJ's
-        // generated classes.
+        // generated classes: the HTTP cases through Spring REST Docs and WebTestClient, and the event
+        // through Microcks, against Kafka in Docker. The fixture reaches the starter's job store and
+        // publisher, so the starter is on the suite's classpath.
         testContract(JvmTestSuite) {
             useJUnitJupiter(libs.versions.junit.sedr.get())
             dependencies {
                 implementation project()
+                implementation springBootBom
+                implementation libs.spring.boot.starter.test.sedr
+                implementation libs.spring.restdocs.webtestclient.sedr
+                implementation libs.validation.execution.sedr
+                implementation libs.spring.boot.starter.kafka.sedr
+                implementation libs.testcontainers.kafka.sedr
             }
             targets.configureEach {
                 testTask.configure {
