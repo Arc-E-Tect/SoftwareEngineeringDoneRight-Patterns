@@ -17,7 +17,6 @@ public final class NameIbanMatchProblems {
     private static final URI UNSUPPORTED_COUNTRY = URI.create("https://api.example.com/payments/problems/unsupported-country");
     private static final URI INVALID_IBAN_CHECKSUM = URI.create("https://api.example.com/payments/problems/invalid-iban-checksum");
     private static final URI INVALID_REQUEST = URI.create("https://api.example.com/problems/invalid-request");
-    private static final URI VALIDATION_JOB_NOT_FOUND = URI.create("https://api.example.com/problems/validation-job-not-found");
 
     private NameIbanMatchProblems() {
     }
@@ -38,12 +37,6 @@ public final class NameIbanMatchProblems {
     /** The request breaks the contract in a way the generated validation did not catch. */
     public static ErrorResponseException invalidRequest(String reason) {
         return answer(problem(400, INVALID_REQUEST, "Invalid Request", reason));
-    }
-
-    /** No validation job of name-iban-match has this identifier. */
-    public static ErrorResponseException jobNotFound(String validationId) {
-        return answer(problem(404, VALIDATION_JOB_NOT_FOUND, "Validation Job Not Found",
-                "No name-iban-match validation job has the identifier " + validationId + "."));
     }
 
     private static ProblemDetail problem(int status, URI type, String title, String detail) {
