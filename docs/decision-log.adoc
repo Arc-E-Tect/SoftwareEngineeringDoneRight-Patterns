@@ -168,6 +168,17 @@ So a slice's `@Configuration` wires the core only, the domain service over the o
 
 |2026-11-17
 |The main class is covered by a unit test that mocks `SpringApplication.run` with Mockito's `mockStatic`, rather than excluded; Mockito runs as a Java agent, as the JDK will refuse a dynamically attached one.
+
+|2026-11-17
+|The starter is hexagonal too: the job (`ValidationJob`) is domain model; `SubmitValidationJobUseCase` and `GetValidationJobUseCase` take commands and return port-owned results (`SubmitValidationJobResult`, `ValidationJobView`); `ValidationJobStore` is the outbound port, with an in-memory adapter; `ValidationExecution` is the inbound adapter a validation's controller uses; an auto-configuration wires them.
+A bounded context's adapters see the port's types, never the job itself.
+
+|2026-11-17
+|The job resource's response is the starter's: `ValidationExecution.job` finds the job through `GetValidationJobUseCase` and answers `404`, or `200` with `Cache-Control` and, while the job is pending, `Retry-After`; the controller passes only its mapping from the job to the contract's job.
+This refines the row on the job resource: the controller calls `GetValidationJobUseCase` through `ValidationExecution`.
+
+|2026-11-17
+|The reference implementation includes the starter with `includeBuild '../validation-execution'`, as the dependency `com.arc-e-tect.patterns:validation-execution` without a version.
 |===
 
 == API
@@ -409,6 +420,24 @@ The client asks the scheme on a virtual thread and waits at most its timeout; wh
 
 |2026-11-17
 |Until Problem Details are aligned with the contract (slice 7), the controller answers its problems as Spring `ProblemDetail`s with the contract's type, title and status, through `ErrorResponseException` and `spring.mvc.problemdetails.enabled`; a `400` from the generated validation has Spring's own shape until then.
+
+|2026-11-17
+|From slice 5, `Prefer: respond-async` runs the validation as a job, and the job resource answers the job; the synchronous-only behaviour of slice 4 is gone.
+`respond-async` is recognised among comma-separated preferences, with or without parameters, in any case (RFC 7240).
+
+|2026-11-17
+|With `Prefer: respond-async`, a request the domain refuses is accepted with `202`, and its job fails with the problem the synchronous `422` has; a validation that fails otherwise fails its job with `internal-server-error`.
+
+|2026-11-17
+|"The same body" for an `Idempotency-Key` is an equal command: the controller passes the use case's command, which has value equality, so requests that differ only in JSON formatting or member order are the same.
+A repeated submission is answered `202` with the job as it is, pending or not.
+
+|2026-11-17
+|The `202` has `Location`, the request's path followed by the job's identifier, `Retry-After` and `Cache-Control: no-store`, and the job as its body.
+`Retry-After` is `validation.execution.retry-after`, whole seconds and at least one, 1 second by default; the shared problem types are names below `validation.execution.problem-types`, `https://api.example.com/problems/` by default.
+
+|2026-11-17
+|Jobs run on virtual threads; the in-memory store keeps every job for as long as the service runs, which suits the example and not a service that runs for long.
 |===
 
 == Testing
@@ -443,6 +472,9 @@ Coverage and mutation testing remain measured on the unit tests alone.
 
 |2026-11-17
 |The generated contract tests come in slice 7: the TranscriberJ renders every case of an operation, and the `202`, job and `400`-body cases can only pass once slices 5 and 7 exist.
+
+|2026-11-17
+|The system tests share one service, and so one job store: every scenario uses an Idempotency-Key of its own, and reads a job until it is no longer pending, for at most 10 seconds.
 |===
 
 == Pattern document

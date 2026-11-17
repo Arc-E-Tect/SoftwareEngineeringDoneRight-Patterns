@@ -24,7 +24,7 @@ It is a Spring Boot service that follows Hexagonal Architecture, with the valida
 
 [NOTE]
 ====
-The implementation is being built test-first, one slice at a time: so far the verdict model, the `name-iban-match` domain, its use case with the domain service that implements it, the client of a simulated payee verification scheme, and the controller, answering synchronously.
+The implementation is being built test-first, one slice at a time: so far the verdict model, the `name-iban-match` domain, its use case with the domain service that implements it, the client of a simulated payee verification scheme, and the controller, answering synchronously or, with the link:../validation-execution/README.adoc[validation-execution starter →], asynchronously.
 ====
 
 == Build and test
@@ -96,6 +96,18 @@ curl -s -X POST http://localhost:8080/payments/v1/validations/name-iban-match \
 [source,json]
 ----
 {"validation":"name-iban-match","outcome":"invalid","details":{"match":"close","registeredName":"Jan de Vries"},"findings":[{"rule":"NAME_IBAN_MISMATCH","severity":"error","message":"The name is close to, but not the same as, the name of the account holder.","pointer":"/accountHolderName"}]}
+----
+
+With `Prefer: respond-async` and an `Idempotency-Key`, the validation runs as a job, which the `Location` of the `202` answers:
+
+[source,console]
+----
+curl -s -i -X POST http://localhost:8080/payments/v1/validations/name-iban-match \
+     -H 'Content-Type: application/json' \
+     -H 'Prefer: respond-async' \
+     -H 'Idempotency-Key: 3f1c9b0e-6a2d-4f7e-9c41-0b8a5e2d7c11' \
+     -d '{"iban": "DE89370400440532013000", "accountHolderName": "Anna Schmidt"}'
+curl -s http://localhost:8080/payments/v1/validations/name-iban-match/<validationId>
 ----
 
 == Versioning

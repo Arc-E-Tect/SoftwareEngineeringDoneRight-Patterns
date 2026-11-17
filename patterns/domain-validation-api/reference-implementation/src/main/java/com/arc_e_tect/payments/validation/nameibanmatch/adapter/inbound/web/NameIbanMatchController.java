@@ -7,7 +7,7 @@ import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.inbound.ValidateNameIbanMatchUseCase;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.inbound.command.ValidateNameIbanMatchCommand;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.inbound.result.ValidateNameIbanMatchResult;
-import org.springframework.http.CacheControl;
+import com.arc_e_tect.validation.async.adapter.inbound.web.ValidationExecution;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -16,37 +16,42 @@ import org.springframework.web.bind.annotation.RestController;
  * contract, so its mappings, and the validation of the request, come from the contract.
  *
  * <p>It maps the request to the use case's command, and each way the use case can end to the
- * contract's answer: a verdict to {@code 200}, a request the domain refuses to {@code 422}.
- * Until the asynchronous execution exists, every validation is answered synchronously: a server
- * may ignore a preference it does not support (RFC 7240), and no validation job exists.
+ * contract's answer: a verdict to its result, a request the domain refuses to its problem. Whether
+ * the validation is answered at once or runs as a job, and everything about the job, is the
+ * asynchronous execution's: the controller hands it the work, and maps the job to the contract's.
  */
 @RestController
 public class NameIbanMatchController implements NameIbanMatchApi {
 
+    private static final String VALIDATION = "name-iban-match";
+
     private final ValidateNameIbanMatchUseCase useCase;
     private final NameIbanMatchMapper mapper;
+    private final ValidationExecution execution;
 
-    public NameIbanMatchController(ValidateNameIbanMatchUseCase useCase, NameIbanMatchMapper mapper) {
+    public NameIbanMatchController(ValidateNameIbanMatchUseCase useCase, NameIbanMatchMapper mapper, ValidationExecution execution) {
         this.useCase = useCase;
         this.mapper = mapper;
+        this.execution = execution;
     }
 
     @Override
     public ResponseEntity<NameIbanMatchResultV1> validateNameIbanMatch(
             NameIbanMatchRequestV1 request, String prefer, String idempotencyKey) {
-        return switch (useCase.validate(command(request))) {
-            case ValidateNameIbanMatchResult.Checked checked ->
-                    ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(mapper.toResult(checked));
-            case ValidateNameIbanMatchResult.UnsupportedCountry refused ->
-                    throw NameIbanMatchProblems.unsupportedCountry(refused.countryCode());
-            case ValidateNameIbanMatchResult.InvalidChecksum refused ->
-                    throw NameIbanMatchProblems.invalidChecksum();
-        };
+        ValidateNameIbanMatchCommand command = command(request);
+        return execution.run(VALIDATION, prefer, idempotencyKey, command,
+                () -> switch (useCase.validate(command)) {
+                    case ValidateNameIbanMatchResult.Checked checked -> mapper.toResult(checked);
+                    case ValidateNameIbanMatchResult.UnsupportedCountry refused ->
+                            throw NameIbanMatchProblems.unsupportedCountry(refused.countryCode());
+                    case ValidateNameIbanMatchResult.InvalidChecksum refused ->
+                            throw NameIbanMatchProblems.invalidChecksum();
+                });
     }
 
     @Override
     public ResponseEntity<NameIbanMatchJobV1> getNameIbanMatchJob(String validationId) {
-        throw NameIbanMatchProblems.jobNotFound(validationId);
+        return execution.job(VALIDATION, validationId, mapper::toJob);
     }
 
     /**

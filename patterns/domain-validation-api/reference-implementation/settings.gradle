@@ -16,3 +16,6 @@ refreshVersions {
 }
 
 rootProject.name = 'domain-validation-api-reference-implementation'
+
+// The asynchronous execution of validations, a starter in a project of its own, built from source.
+includeBuild '../validation-execution'

@@ -18,11 +18,21 @@ repositories {
     mavenCentral()
 }
 
+// The Spring Boot BOM as a Gradle platform, exported to the projects that use the starter.
+dependencies {
+    api platform(libs.spring.boot.dependencies.sedr)
+    api libs.spring.boot.starter.webmvc.sedr
+}
+
 testing {
     suites {
         // Unit tests: one class at a time, everything outside it mocked; never a Spring context.
         test {
             useJUnitJupiter(libs.versions.junit.sedr.get())
+            dependencies {
+                // A request for ValidationExecution to answer, without a Spring context.
+                implementation libs.spring.test.sedr
+            }
         }
 
         // Component tests: one component with everything outside it mocked; never a Spring context.
@@ -85,9 +95,6 @@ pitest {
     mutationThreshold = 100
     outputFormats = ['HTML', 'XML']
     timestampedReports = false
-    // Only so that the empty skeleton builds: once there is code there are mutants, and the
-    // threshold above applies to every one of them.
-    failWhenNoMutations = false
 }
 
 tasks.named('check') {
