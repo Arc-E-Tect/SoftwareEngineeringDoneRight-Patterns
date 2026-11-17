@@ -255,6 +255,39 @@ The service sends the webhook and implements nothing for it, so the generator ru
 `generateJsonSetterNullsAnnotations=true` with `optionalNonNullPropertyJsonSetterNulls=FAIL`, so an explicit `null` for an optional request member is rejected with `400`.
 |===
 
+== Rules pack
+
+[cols="1,4",options="header"]
+|===
+|Date |Decision
+
+|2026-11-17
+|The pattern's rules pack is `domain-validation-rules/` in the Library repository, next to `hexagonal-spring-rules`, published as `com.arc-e-tect.architecture-validator:architecture-validator-domain-validation-rules`, in package `com.arc_e_tect.gradle.architecture.domainvalidation`.
+It is built like the Spring pack: Java 21, `-iff` aliases, rule classes in `src/main`, self-tests in `src/test` and fixtures in `src/testFixtures`.
+
+|2026-11-17
+|The pack does not repeat built-in rules of the Architecture Validator: the pattern's `use_cases_are_suffixed`, `domain_and_application_do_not_depend_on_adapters` and `inbound_adapters_do_not_depend_on_the_domain` are the built-in naming convention, `core_layer_must_not_depend_on_adapters` and `inbound_adapters_must_access_application_through_inbound_ports`.
+The reference implementation adds `..validation.verdict..` to `domainModel`, so the built-in rules guard the shared verdict model.
+
+|2026-11-17
+|The pack reads three settings of its own as system properties on the consumer's `testArchitecture` task, as the plugin has no passthrough: `architectureValidator.domainValidation.validationsPackages` (required), `...sharedPackages` (default `verdict`) and `...executionPackages` (default `com.arc_e_tect.validation.async..`).
+
+|2026-11-17
+|Eleven rules and a fail-fast configuration check: `validationSlicesAreIndependent`, `sharedPackagesDependOnNoSlice`, `noClassDependsOnMoreThanOneValidation`, `controllersDependOnlyOnUseCasesTheirAdapterAndExecution`, `controllersImplementAGeneratedApi`, `controllersDeclareNoRequestMappingsOfTheirOwn`, `generatedApiTypesStayInTheirInboundWebAdapter`, `useCasesTakeACommandAndReturnAResult`, `useCaseResultsAreSealed`, `commandsAreImmutable`, and the opt-in `controllersAreNamedAfterTheirApi`.
+Every rule class name starts with `DomainValidation`, because the plugin warns about two packs contributing test classes with the same simple name.
+
+|2026-11-17
+|Each rule has a self-test against a compliant bounded context and one against a violating bounded context of its own; the self-tests follow this repository's conventions, one assertion and a `@DisplayName` each, rather than the Spring pack's several assertions per test.
+Like the Spring pack's build, the pack's build has no coverage or mutation gate.
+
+|2026-11-17
+|The pack has a build and a release workflow mirrored from the Spring pack's; the release runs on a push to `main` that changes the pack's sources, so merging the pack's pull request publishes it.
+
+|2026-11-17
+|The pack is published to the local Maven repository as `1.0.0-PRERELEASE` for Phase 5.
+The reference implementation depends on it, so its pull request is not pushed until the pack is published, as the brief requires.
+|===
+
 == Behaviour of the example
 
 [cols="1,4",options="header"]
