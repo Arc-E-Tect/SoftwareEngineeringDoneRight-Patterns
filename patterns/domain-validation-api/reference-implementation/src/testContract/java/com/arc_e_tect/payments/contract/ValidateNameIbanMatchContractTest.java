@@ -2,6 +2,7 @@ package com.arc_e_tect.payments.contract;
 
 import com.arc_e_tect.payments.contract.restdocs.ValidateNameIbanMatchContractTests;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
  * response to, so it derives each status for both requests. Those two are disabled, with the
  * reason; their counterparts, with the request that selects their status, run.
  */
+@DisplayName("The contract of POST /v1/validations/name-iban-match")
 class ValidateNameIbanMatchContractTest extends RunningService implements ValidateNameIbanMatchContractTests {
 
     private static final String SELECTED_BY_PREFER = "The status is selected by Prefer: respond-async, which the TranscriberJ cannot tie "

@@ -5,6 +5,7 @@ import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.
 import com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api.OutcomeV1;
 import com.arc_e_tect.validation.async.application.domain.model.ValidationJob;
 import com.arc_e_tect.validation.async.application.port.outbound.ValidationJobStore;
+import org.junit.jupiter.api.DisplayName;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Optional;
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * The generated contract tests of GET /v1/validations/name-iban-match/{validationId}, against the
  * running service, with the job a case names put in the service's job store, or made sure is not.
  */
+@DisplayName("The contract of GET /v1/validations/name-iban-match/{validationId}")
 class GetNameIbanMatchJobContractTest extends RunningService implements GetNameIbanMatchJobContractTests {
 
     @Autowired
