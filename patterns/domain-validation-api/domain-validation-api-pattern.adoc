@@ -605,16 +605,21 @@ class NameIbanMatchController implements NameIbanMatchApi {
                 VALIDATION,
                 prefer,
                 idempotencyKey,
+                command,
                 () -> switch (useCase.validate(command)) {
                     case ValidateNameIbanMatchResult.Checked checked -> mapper.toResult(checked);
                     case ValidateNameIbanMatchResult.UnsupportedCountry refused ->
                             throw NameIbanMatchProblems.unsupportedCountry(refused.countryCode());
                     case ValidateNameIbanMatchResult.InvalidChecksum refused ->
                             throw NameIbanMatchProblems.invalidChecksum();
-                });
+                },
+                mapper::outcomeOf);
     }
 }
 ----
+
+The execution is given the command as well: a request repeated with the same `Idempotency-Key` is compared with it, so two requests that differ only in their JSON formatting are the same request.
+The last argument reads the outcome of a result, which the completion of an asynchronous validation is published with, to the webhook's subscribers and to the event's topic.
 
 The handler only does what is specific to its validation: mapping the typed request to the use case's command, and each of the use case's results to the typed result or, for a request the domain refuses, to Problem Details with status `422`.
 A bounded context that does not offer asynchronous execution calls the use case directly and returns `200`.
