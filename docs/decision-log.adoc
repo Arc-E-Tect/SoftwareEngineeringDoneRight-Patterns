@@ -100,6 +100,13 @@ The rules pack in the Library repository follows that repository's `-iff` conven
 
 |2026-11-17
 |Documentation: `patterns/README.adoc` indexes the patterns; each pattern folder has a `README.adoc` that introduces the pattern and links to its document and its reference implementation; every project README links back to the pattern; the root README indexes all projects and carries the disclaimer about the reference implementations.
+
+|2026-11-17
+|The Spring Boot BOM is a Gradle platform (`SpringBootPlugin.BOM_COORDINATES`) in every configuration that takes a managed dependency, not the `io.spring.dependency-management` plugin: that plugin turns every version a build declares into a managed one, which pinned the rule packs' ArchUnit 1.5.1 down to the Architecture Validator's 1.4.1.
+
+|2026-11-17
+|The reference implementation's build publishes its contract from `api/` with the API-Only Publisher to the library's `file` channel, and the API-Only Subscriber 0.4.5 fetches it from there, at `apiContractVersion` in `gradle.properties`, locked in the committed `apionly.lock`.
+The build therefore needs Node; the workflow sets it up and runs on changes to `api/` too.
 |===
 
 == Architecture
@@ -154,6 +161,13 @@ They stayed off only while the pattern document used a `UseCase` prefix.
 
 |2026-11-17
 |The outbound port `AccountHolderRegistry` (`accountHolderOf(Iban)`, answering a `RegisteredAccountHolder`) comes with the use case in slice 2, because the domain service needs it; its simulated adapter follows in slice 3.
+
+|2026-11-17
+|The Architecture Validator counts `configuration` as part of the core, which must not know any adapter, and lets only `configuration` know a domain service's implementation.
+So a slice's `@Configuration` wires the core only, the domain service over the outbound port, and the adapters are Spring components that read their own settings: `PayeeVerificationSchemeProperties` in the outbound adapter, `NameIbanMatchProperties` (the supported countries) in `configuration`.
+
+|2026-11-17
+|The main class is covered by a unit test that mocks `SpringApplication.run` with Mockito's `mockStatic`, rather than excluded; Mockito runs as a Java agent, as the JDK will refuse a dynamically attached one.
 |===
 
 == API
@@ -232,6 +246,11 @@ The header is declared optional, because "required only when asynchronous" needs
 |2026-11-17
 |The lint warnings of `required-string-property-missing-min-length` on strings fixed by `const`, `enum` or `pattern`, and on `completedAt`, are accepted: a `minLength` there cannot be broken on its own, and would only give the TranscriberJ a case it cannot isolate.
 Free-text `detail` members have `minLength: 1`.
+
+|2026-11-17
+|`accountHolderName` has the pattern `^\s*\S.*$` (bundle 0.0.2): a name of only whitespace breaks the contract, as the domain refuses it.
+It is anchored so that it means the same as a JSON Schema search and as a Java `@Pattern` match.
+Java's `\s` is narrower than ECMAScript's, so a name of only, say, em spaces passes the generated validation; the command refuses it, and the controller answers the contract's `400`.
 |===
 
 == OpenAPI Generator
@@ -262,6 +281,11 @@ The service sends the webhook and implements nothing for it, so the generator ru
 |2026-11-17
 |`generateJsonIncludeAnnotations=true` with `NON_NULL`, so an absent optional member is left out of a response instead of written as `null`, which the contract does not allow.
 `generateJsonSetterNullsAnnotations=true` with `optionalNonNullPropertyJsonSetterNulls=FAIL`, so an explicit `null` for an optional request member is rejected with `400`.
+
+|2026-11-17
+|The generator runs as the Gradle plugin `org.openapi.generator` 7.27.0 on the subscribed contract, with `FILTER: tag:Name IBAN Match`, and generates the APIs and models only (`apis=,models=`): the supporting files, `ApiUtil` and an `EnumConverterConfiguration` outside the slice, are used by nothing.
+`hideGenerationTimestamp=true`, so the same contract gives the same code.
+The generated package is left out of coverage and mutation testing.
 |===
 
 == Rules pack
@@ -379,6 +403,12 @@ The client asks the scheme on a virtual thread and waits at most its timeout; wh
 
 |2026-11-17
 |`SimulatedPayeeVerificationScheme` takes an account's response time for real, so that a slow account shows the timeout synchronously and gives the asynchronous execution something to wait for; an unavailable account fails after its response time, and an IBAN that is not in the table has no name at once.
+
+|2026-11-17
+|Until the asynchronous execution exists (slice 5), every validation is answered synchronously, as a server may ignore a preference it does not support (RFC 7240), and the job resource answers `404` for every identifier.
+
+|2026-11-17
+|Until Problem Details are aligned with the contract (slice 7), the controller answers its problems as Spring `ProblemDetail`s with the contract's type, title and status, through `ErrorResponseException` and `spring.mvc.problemdetails.enabled`; a `400` from the generated validation has Spring's own shape until then.
 |===
 
 == Testing
@@ -407,6 +437,12 @@ A surviving mutant is fixed with a test, or excluded only with the maintainer's 
 |2026-11-17
 |`testComponent` runs each use case as one component with plain JUnit: for `name-iban-match` the domain service, the rule, the scheme client and the simulated scheme, from an exact match to an indeterminate verdict.
 Coverage and mutation testing remain measured on the unit tests alone.
+
+|2026-11-17
+|The system tests run the service on a random port with the `system` profile, which has its own accounts and a timeout of 300 ms; each feature's Background states the accounts and countries it relies on, and checks that the service runs with them.
+
+|2026-11-17
+|The generated contract tests come in slice 7: the TranscriberJ renders every case of an operation, and the `202`, job and `400`-body cases can only pass once slices 5 and 7 exist.
 |===
 
 == Pattern document
