@@ -2,9 +2,16 @@
  * Domain Validation API reference implementation: the payments service with the name-iban-match validation.
  * The version comes from gradle.properties; CI replaces it with the calculated next version.
  */
+import javax.inject.Inject
+
+import org.springframework.boot.gradle.plugin.SpringBootPlugin
+
 plugins {
     id 'java'
     id 'jacoco'
+    alias(libs.plugins.spring.boot.sedr)
+    alias(libs.plugins.api.only.subscriber.sedr)
+    alias(libs.plugins.openapi.generator.sedr)
     alias(libs.plugins.pitest.sedr)
     alias(libs.plugins.architecture.validator.sedr)
 }
@@ -39,11 +46,155 @@ repositories {
     }
 }
 
+// The Spring Boot BOM as a Gradle platform, in every configuration that takes a managed dependency.
+// Not the dependency-management plugin: it turns every version a build declares into a managed one,
+// which pinned the rule packs' ArchUnit 1.5.1 down to the Architecture Validator's 1.4.1.
+def springBootBom = dependencies.platform(SpringBootPlugin.BOM_COORDINATES)
+
+dependencies {
+    implementation springBootBom
+    implementation libs.spring.boot.starter.webmvc.sedr
+    implementation libs.spring.boot.starter.validation.sedr
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The contract
+//
+// The service implements the domain-validation-api contract at the version in gradle.properties
+// (apiContractVersion). The API-Only Publisher builds it from the specification library in api/ and
+// publishes it to that library's file channel; the API-Only Subscriber fetches it from there,
+// checks it against apionly.lock, and puts it on the classpath. No copy of the contract lives in
+// src/, and nothing the Publisher builds is committed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+def contractTarget = 'domain-validation-api'
+def apiLibrary = layout.projectDirectory.dir('../../../api')
+def npmCommand = System.getProperty('os.name').toLowerCase().contains('windows') ? 'npm.cmd' : 'npm'
+
+def installApiOnlyPublisher = tasks.register('installApiOnlyPublisher', Exec) {
+    group = 'api contracts'
+    description = 'Installs the pinned API-Only Publisher into api/ (npm ci).'
+    workingDir apiLibrary
+    commandLine npmCommand, 'ci', '--no-audit', '--no-fund'
+    inputs.files(apiLibrary.file('package.json'), apiLibrary.file('package-lock.json'))
+        .withPropertyName('manifests')
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    // npm writes this file on every install; it stands in for node_modules, which is too large to fingerprint.
+    outputs.file(apiLibrary.file('node_modules/.package-lock.json')).withPropertyName('installation')
+}
+
+/** Builds the contract with the API-Only Publisher and publishes it to the file channel. */
+@CacheableTask
+abstract class PublishApiContract extends DefaultTask {
+
+    /** Where the Publisher runs: the directory holding apionly.yaml. */
+    @Internal
+    abstract DirectoryProperty getSpecificationsDirectory()
+
+    @Internal
+    abstract Property<String> getNpm()
+
+    /** The Publisher target to build. */
+    @Input
+    abstract Property<String> getTarget()
+
+    /** Everything the contract is built from: fragments, configuration and the pinned toolchain. */
+    @InputFiles
+    @PathSensitive(PathSensitivity.RELATIVE)
+    abstract ConfigurableFileCollection getSpecificationFiles()
+
+    /** The file channel, which the Subscriber reads. */
+    @OutputDirectory
+    abstract DirectoryProperty getChannelDirectory()
+
+    @Inject
+    abstract ExecOperations getExecOperations()
+
+    @TaskAction
+    void publish() {
+        def target = ['--target', this.target.get()]
+        [['build'] + target, ['publish'] + target + ['--channel', 'file']].each { command ->
+            execOperations.exec { spec ->
+                spec.workingDir = specificationsDirectory.get().asFile
+                spec.commandLine([npm.get(), 'run', '--silent', 'apionly', '--'] + command)
+            }
+        }
+    }
+}
+
+def publishApiContract = tasks.register('publishApiContract', PublishApiContract) {
+    group = 'api contracts'
+    description = "Builds the ${contractTarget} contract and publishes it to the file channel of api/."
+    dependsOn(installApiOnlyPublisher)
+    specificationsDirectory = apiLibrary
+    npm = npmCommand
+    target = contractTarget
+    specificationFiles.from(apiLibrary.asFileTree.matching {
+        include 'specs/**', 'apionly.yaml', '.redocly.lint.yaml', 'package-lock.json'
+    })
+    channelDirectory = apiLibrary.dir('build/publish')
+}
+
+apiOnlySubscriber {
+    channel {
+        // The specification library lives in this repository: the contract is read from the
+        // directory the Publisher wrote, not from a registry. The Subscriber still unpacks it and
+        // checks it, so the service is built against a contract it cannot edit.
+        type = 'file'
+        directory = apiLibrary.dir('build/publish').asFile.absolutePath
+    }
+    subscribe(contractTarget)
+}
+
+tasks.withType(com.arc_e_tect.gradle.apionly.subscriber.FetchApiSpecTask).configureEach {
+    dependsOn(publishApiContract)
+}
+
+// The inbound web adapter's code, generated from the contract: one run per validation, into that
+// validation's adapter.inbound.web.api package, with the options the decision log records.
+// The global properties generate the APIs and models only: webhooks are left out, because the
+// generator crashes on them and the service sends the webhook rather than implementing it, and so are
+// the supporting files, which nothing uses.
+openApiGenerate {
+    generatorName = 'spring'
+    inputSpec = apiOnlySubscriber.subscription(contractTarget).openapi
+    outputDir = layout.buildDirectory.dir('generated/openapi/name-iban-match')
+    apiPackage = 'com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api'
+    modelPackage = 'com.arc_e_tect.payments.validation.nameibanmatch.adapter.inbound.web.api'
+    openapiNormalizer = [FILTER: 'tag:Name IBAN Match']
+    globalProperties = [apis: '', models: '']
+    configOptions = [
+        interfaceOnly                         : 'true',
+        useTags                               : 'true',
+        skipDefaultInterface                  : 'true',
+        useBeanValidation                     : 'true',
+        openApiNullable                       : 'false',
+        documentationProvider                 : 'source',
+        annotationLibrary                     : 'none',
+        requestMappingMode                    : 'api_interface',
+        unhandledException                    : 'true',
+        useSpringBoot4                        : 'true',
+        useJackson3                           : 'true',
+        generateJsonIncludeAnnotations        : 'true',
+        generateJsonSetterNullsAnnotations    : 'true',
+        optionalNonNullPropertyJsonSetterNulls: 'FAIL',
+        // The same contract gives the same code, so the build cache can reuse it.
+        hideGenerationTimestamp               : 'true',
+    ]
+}
+
+sourceSets.main.java.srcDir(tasks.named('openApiGenerate').flatMap { it.outputDir.dir('src/main/java') })
+
 testing {
     suites {
         // Unit tests: one class at a time, everything outside it mocked; never a Spring context.
         test {
             useJUnitJupiter(libs.versions.junit.sedr.get())
+            dependencies {
+                implementation springBootBom
+                // For the one static call a unit test cannot avoid otherwise: SpringApplication.run.
+                implementation libs.mockito.core.sedr
+            }
         }
 
         // Component tests: one component with everything outside it mocked; never a Spring context.
@@ -78,6 +229,9 @@ testing {
             useJUnitJupiter(libs.versions.junit.sedr.get())
             dependencies {
                 implementation project()
+                implementation springBootBom
+                implementation libs.spring.boot.starter.test.sedr
+                implementation.bundle(libs.bundles.cucumber.sedr)
             }
             targets.configureEach {
                 testTask.configure {
@@ -92,13 +246,45 @@ tasks.named('check') {
     dependsOn testing.suites.testComponent, testing.suites.testContract, testing.suites.testSystem
 }
 
+// Mockito instruments classes with its own agent, attached at start-up rather than at run time,
+// which the JDK warns about and will refuse.
+configurations {
+    mockitoAgent
+}
+
+dependencies {
+    mockitoAgent springBootBom
+    mockitoAgent(libs.mockito.core.sedr) {
+        transitive = false
+    }
+}
+
+def mockitoAgentPath = configurations.mockitoAgent.elements.map { it.first().asFile.absolutePath }
+
+tasks.named('test', Test) {
+    jvmArgumentProviders.add(new MockitoAgent(path: mockitoAgentPath))
+}
+
+class MockitoAgent implements CommandLineArgumentProvider {
+    @Internal
+    Provider<String> path
+
+    @Override
+    Iterable<String> asArguments() {
+        ["-javaagent:${path.get()}".toString()]
+    }
+}
+
 // Coverage: 100% of the project's own code, measured on the unit tests alone. Generated code is
-// excluded once it exists; nothing else is.
+// excluded; nothing else is.
+def generatedCode = '**/adapter/inbound/web/api/**'
+
 tasks.named('test') {
     finalizedBy 'jacocoTestReport'
 }
 
 tasks.named('jacocoTestReport') {
+    classDirectories.setFrom(sourceSets.main.output.classesDirs.asFileTree.matching { exclude generatedCode })
     reports {
         xml.required = true
         html.required = true
@@ -106,6 +292,7 @@ tasks.named('jacocoTestReport') {
 }
 
 tasks.named('jacocoTestCoverageVerification') {
+    classDirectories.setFrom(sourceSets.main.output.classesDirs.asFileTree.matching { exclude generatedCode })
     violationRules {
         rule {
             ['INSTRUCTION', 'BRANCH', 'LINE', 'METHOD', 'CLASS'].each { measured ->
@@ -129,6 +316,8 @@ pitest {
     pitestVersion = libs.versions.pitest.sedr.get()
     junit5PluginVersion = libs.versions.pitest.junit5.sedr.get()
     targetClasses = ['com.arc_e_tect.payments.*']
+    excludedClasses = ['com.arc_e_tect.payments.validation.*.adapter.inbound.web.api.*']
+    jvmArgs = mockitoAgentPath.map { ["-javaagent:${it}".toString()] }
     testSourceSets = [sourceSets.test]
     mutators = ['STRONGER']
     mutationThreshold = 100

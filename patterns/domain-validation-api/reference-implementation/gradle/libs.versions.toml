@@ -9,13 +9,35 @@ pitest-plugin-sedr = "1.19.0"
 architecture-validator-sedr = "4.1.0"
 hexagonal-spring-rules-sedr = "1.0.5"
 domain-validation-rules-sedr = "0.0.1"
+spring-boot-sedr = "4.1.2"
+api-only-subscriber-sedr = "0.4.5"
+openapi-generator-sedr = "7.27.0"
+cucumber-sedr = "8.0.4"
 
 [libraries]
 
 hexagonal-spring-rules-sedr = { module = "com.arc-e-tect.architecture-validator:architecture-validator-hexagonal-spring-rules", version.ref = "hexagonal-spring-rules-sedr" }
 domain-validation-rules-sedr = { module = "com.arc-e-tect.architecture-validator:architecture-validator-domain-validation-rules", version.ref = "domain-validation-rules-sedr" }
 
+# Managed by the Spring Boot BOM: no version.
+spring-boot-starter-webmvc-sedr = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
+spring-boot-starter-validation-sedr = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-starter-test-sedr = { module = "org.springframework.boot:spring-boot-starter-test" }
+mockito-core-sedr = { module = "org.mockito:mockito-core" }
+junit-platform-suite-sedr = { module = "org.junit.platform:junit-platform-suite" }
+
+cucumber-java-sedr = { module = "io.cucumber:cucumber-java", version.ref = "cucumber-sedr" }
+cucumber-spring-sedr = { module = "io.cucumber:cucumber-spring", version.ref = "cucumber-sedr" }
+cucumber-junit-platform-engine-sedr = { module = "io.cucumber:cucumber-junit-platform-engine", version.ref = "cucumber-sedr" }
+
+[bundles]
+
+cucumber-sedr = ["cucumber-java-sedr", "cucumber-spring-sedr", "cucumber-junit-platform-engine-sedr", "junit-platform-suite-sedr"]
+
 [plugins]
 
 pitest-sedr = { id = "info.solidsoft.pitest", version.ref = "pitest-plugin-sedr" }
 architecture-validator-sedr = { id = "com.arc-e-tect.architecture-validator", version.ref = "architecture-validator-sedr" }
+spring-boot-sedr = { id = "org.springframework.boot", version.ref = "spring-boot-sedr" }
+api-only-subscriber-sedr = { id = "com.arc-e-tect.api-only-subscriber", version.ref = "api-only-subscriber-sedr" }
+openapi-generator-sedr = { id = "org.openapi.generator", version.ref = "openapi-generator-sedr" }
