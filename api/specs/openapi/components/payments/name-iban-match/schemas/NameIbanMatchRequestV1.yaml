@@ -16,9 +16,12 @@ properties:
       - NL91ABNA0417164300
   accountHolderName:
     title: Account Holder Name
-    description: The name the payer gives for the holder of the account; at most 70 characters, the SEPA limit for a party name.
+    description: >-
+      The name the payer gives for the holder of the account; at most 70 characters, the SEPA limit for a party name, and not only whitespace.
     type: string
     minLength: 1
     maxLength: 70
+    # Anchored, so that it means the same as a search (JSON Schema) and as a whole match (Java's @Pattern).
+    pattern: '^\s*\S.*$'
     examples:
       - Jan de Vries
