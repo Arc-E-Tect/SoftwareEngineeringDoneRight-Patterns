@@ -5,6 +5,10 @@ spring:
     # Errors are answered as RFC 9457 Problem Details, application/problem+json.
     problemdetails:
       enabled: true
+  jackson:
+    deserialization:
+      # A request body with a member the contract does not declare breaks the contract.
+      fail-on-unknown-properties: true
 
 # Once a job has run, the validation-execution starter tells so: it posts the contract's
 # ValidationCompletedEventV1 to the webhook's subscribers, none by default, and sends it to the topic
