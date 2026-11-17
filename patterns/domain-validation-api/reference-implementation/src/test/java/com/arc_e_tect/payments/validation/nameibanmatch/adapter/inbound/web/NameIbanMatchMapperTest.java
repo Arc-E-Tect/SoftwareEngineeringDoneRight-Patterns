@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import com.arc_e_tect.validation.async.application.port.inbound.command.ValidationOutcome;
 import com.arc_e_tect.validation.async.application.port.inbound.result.ValidationJobView;
 
 import java.net.URI;
@@ -133,6 +134,15 @@ class NameIbanMatchMapperTest {
         }
     }
 
+    @ParameterizedTest(name = "{0}")
+    @EnumSource(OutcomeV1.class)
+    @DisplayName("reads the outcome of the contract's result, which the completion of a job is published with")
+    void readsTheOutcome(OutcomeV1 outcome) {
+        NameIbanMatchResultV1 result = new NameIbanMatchResultV1(NameIbanMatchResultV1.ValidationEnum.NAME_IBAN_MATCH, outcome);
+
+        assertEquals(ValidationOutcome.valueOf(outcome.name()), mapper.outcomeOf(result));
+    }
+
     @Nested
     @DisplayName("turns a validation job into the contract's job")
     class TurnsAJobIntoTheContractsJob {
@@ -140,7 +150,7 @@ class NameIbanMatchMapperTest {
         private static final String ID = "8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f";
 
         private static ValidationJobView job(ValidationJobView.Status status, Optional<Object> result, Optional<ValidationJobView.Problem> problem) {
-            return new ValidationJobView(ID, "name-iban-match", status, result, problem);
+            return new ValidationJobView(ID, "name-iban-match", "/payments/v1/validations/name-iban-match/" + ID, status, result, problem);
         }
 
         @Test

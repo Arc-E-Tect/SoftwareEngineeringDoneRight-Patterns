@@ -36,6 +36,11 @@ public class HttpSteps {
     /** Where the job of the validation a scenario's Given submitted is. */
     private String submittedJobLocation;
 
+    /** Where the job of the last validation answered with 202 is, for the steps about what the service tells of it. */
+    String jobLocation() {
+        return jobLocation;
+    }
+
     private URI uri(String path) {
         return URI.create("http://localhost:" + port + path);
     }

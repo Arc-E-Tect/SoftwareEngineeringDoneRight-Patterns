@@ -14,3 +14,11 @@ payments:
           - iban: NL20INGB0001234567
             registered-name: Anna Bakker
             available: false
+
+# The completion of a job is posted to WireMock, whose subscribers the system tests set, and sent to
+# Kafka in Docker.
+validation:
+  execution:
+    events:
+      kafka:
+        enabled: true

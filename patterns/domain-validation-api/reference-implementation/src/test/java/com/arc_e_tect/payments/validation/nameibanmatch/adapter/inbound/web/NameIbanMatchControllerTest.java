@@ -13,6 +13,7 @@ import com.arc_e_tect.validation.async.adapter.inbound.web.ValidationExecutionPr
 import com.arc_e_tect.validation.async.application.port.inbound.command.GetValidationJobCommand;
 import com.arc_e_tect.validation.async.application.port.inbound.command.JobOutcome;
 import com.arc_e_tect.validation.async.application.port.inbound.command.SubmitValidationJobCommand;
+import com.arc_e_tect.validation.async.application.port.inbound.command.ValidationOutcome;
 import com.arc_e_tect.validation.async.application.port.inbound.result.SubmitValidationJobResult;
 import com.arc_e_tect.validation.async.application.port.inbound.result.ValidationJobView;
 import org.junit.jupiter.api.AfterEach;
@@ -44,7 +45,8 @@ class NameIbanMatchControllerTest {
     private static final String KEY = "3f1c9b0e-6a2d-4f7e-9c41-0b8a5e2d7c11";
     private static final String ID = "8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f";
     private static final ValidationJobView PENDING =
-            new ValidationJobView(ID, "name-iban-match", ValidationJobView.Status.PENDING, Optional.empty(), Optional.empty());
+            new ValidationJobView(ID, "name-iban-match", "/payments/v1/validations/name-iban-match/" + ID,
+                    ValidationJobView.Status.PENDING, Optional.empty(), Optional.empty());
 
     private final NameIbanMatchMapper mapper = new NameIbanMatchMapper();
     private final ValidationExecutionProblems problems = new ValidationExecutionProblems(URI.create("https://api.example.com/problems/"));
@@ -171,20 +173,21 @@ class NameIbanMatchControllerTest {
         }
 
         @Test
-        @DisplayName("submits a name-iban-match job under the key, for the request's command")
+        @DisplayName("submits a name-iban-match job under the key, for the request's command, below the operation's path")
         void submitsTheJob() {
             answering(VALID).validateNameIbanMatch(REQUEST, "respond-async", KEY);
 
-            assertEquals(List.of("name-iban-match", KEY, COMMAND),
-                    List.of(submitted.getFirst().validation(), submitted.getFirst().idempotencyKey(), submitted.getFirst().request()));
+            assertEquals(List.of("name-iban-match", KEY, COMMAND, "/payments/v1/validations/name-iban-match"),
+                    List.of(submitted.getFirst().validation(), submitted.getFirst().idempotencyKey(), submitted.getFirst().request(),
+                            submitted.getFirst().operationPath()));
         }
 
         @Test
-        @DisplayName("submits a job that completes with the contract's result")
+        @DisplayName("submits a job that completes with the contract's result and its outcome")
         void submitsAJobThatCompletes() {
             answering(VALID).validateNameIbanMatch(REQUEST, "respond-async", KEY);
 
-            assertEquals(new JobOutcome.Completed(mapper.toResult(VALID)), submitted.getFirst().work().get());
+            assertEquals(new JobOutcome.Completed(mapper.toResult(VALID), ValidationOutcome.VALID), submitted.getFirst().work().get());
         }
 
         @Test
