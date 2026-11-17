@@ -8,10 +8,12 @@ pitest-junit5-sedr = "1.2.3"
 pitest-plugin-sedr = "1.19.0"
 architecture-validator-sedr = "4.1.0"
 hexagonal-spring-rules-sedr = "1.0.5"
+domain-validation-rules-sedr = "0.0.1"
 
 [libraries]
 
 hexagonal-spring-rules-sedr = { module = "com.arc-e-tect.architecture-validator:architecture-validator-hexagonal-spring-rules", version.ref = "hexagonal-spring-rules-sedr" }
+domain-validation-rules-sedr = { module = "com.arc-e-tect.architecture-validator:architecture-validator-domain-validation-rules", version.ref = "domain-validation-rules-sedr" }
 
 [plugins]
 
