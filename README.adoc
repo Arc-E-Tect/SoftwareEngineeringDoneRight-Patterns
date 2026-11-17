@@ -60,6 +60,10 @@ Every project builds, tests and runs on its own.
 |link:patterns/domain-validation-api/validation-execution/README.adoc[`validation-execution` →]
 |Domain Validation API
 |The reusable asynchronous execution of validations, as a Spring Boot starter.
+
+|link:api/README.adoc[`api` →]
+|Every pattern
+|The API specifications of the patterns, as an API-Only specification library with one target per pattern.
 |===
 
 [#development]
@@ -73,7 +77,8 @@ Install the repository's Git hooks once after cloning:
 ----
 
 Each project's README says how to build, test and run it.
-The builds need Java 25; each project brings its own Gradle wrapper.
+The Java builds need Java 25; each project brings its own Gradle wrapper.
+The `api` library needs Node.js instead, as its README says.
 
 link:docs/decision-log.adoc[The decision log →] records every decision taken for this repository, with its reason.
 
