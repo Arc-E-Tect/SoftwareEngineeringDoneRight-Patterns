@@ -17,6 +17,26 @@ java {
 
 repositories {
     mavenCentral()
+    // The Domain Validation API rule pack is published on GitHub Packages until it moves to Maven Central,
+    // and is resolved from there only. GitHub Packages needs a token even for a public package: in CI the
+    // workflow's GH_READ_PACKAGE_TOKEN secret, locally gpr.user and gpr.key in ~/.gradle/gradle.properties.
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = 'GitHubPackagesLibrary'
+                url = uri('https://maven.pkg.github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Library')
+                // One pair or the other, never a mix: the CI pair when the token is in the environment.
+                def ciToken = providers.environmentVariable('GH_READ_PACKAGE_TOKEN')
+                credentials {
+                    username = (ciToken.isPresent() ? providers.environmentVariable('GITHUB_ACTOR') : providers.gradleProperty('gpr.user')).getOrNull()
+                    password = ciToken.orElse(providers.gradleProperty('gpr.key')).getOrNull()
+                }
+            }
+        }
+        filter {
+            includeModule('com.arc-e-tect.architecture-validator', 'architecture-validator-domain-validation-rules')
+        }
+    }
 }
 
 testing {
@@ -120,8 +140,8 @@ tasks.named('check') {
     dependsOn 'pitest'
 }
 
-// Architecture: the Architecture Validator's built-in Hexagonal rules and the Spring rule pack.
-// The Domain Validation API rule pack joins them once it is published.
+// Architecture: the Architecture Validator's built-in Hexagonal rules, the Spring rule pack and the
+// Domain Validation API rule pack.
 architectureValidator {
     basePackage = 'com.arc_e_tect.payments'
     junitVersion = libs.versions.junit.sedr.get()
@@ -136,6 +156,12 @@ architectureValidator {
 
 dependencies {
     testArchitectureImplementation libs.hexagonal.spring.rules.sedr
+    testArchitectureImplementation libs.domain.validation.rules.sedr
+}
+
+tasks.named('testArchitecture') {
+    // Each sub-package of the validations package is one validation slice, except the shared verdict model.
+    systemProperty 'architectureValidator.domainValidation.validationsPackages', 'com.arc_e_tect.payments.validation'
 }
 
 tasks.named('check') {
