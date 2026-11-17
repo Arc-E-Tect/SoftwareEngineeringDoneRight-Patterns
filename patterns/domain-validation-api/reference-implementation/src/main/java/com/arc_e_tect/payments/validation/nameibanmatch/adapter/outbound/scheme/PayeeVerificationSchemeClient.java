@@ -3,6 +3,8 @@ package com.arc_e_tect.payments.validation.nameibanmatch.adapter.outbound.scheme
 import com.arc_e_tect.payments.validation.nameibanmatch.application.domain.model.Iban;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.domain.model.RegisteredAccountHolder;
 import com.arc_e_tect.payments.validation.nameibanmatch.application.port.outbound.AccountHolderRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -19,6 +21,7 @@ import java.util.concurrent.TimeoutException;
  * does not answer in time, the register is unavailable: the client says so, and stops waiting,
  * rather than failing, because what that means is for the use case to decide.
  */
+@Component
 public class PayeeVerificationSchemeClient implements AccountHolderRegistry {
 
     private final PayeeVerificationScheme scheme;
@@ -30,6 +33,12 @@ public class PayeeVerificationSchemeClient implements AccountHolderRegistry {
         if (!timeout.isPositive()) {
             throw new IllegalArgumentException("A timeout is positive: " + timeout);
         }
+    }
+
+    /** The client that waits for the scheme at most the configured timeout. */
+    @Autowired
+    public PayeeVerificationSchemeClient(PayeeVerificationScheme scheme, PayeeVerificationSchemeProperties properties) {
+        this(scheme, properties.timeout());
     }
 
     @Override
