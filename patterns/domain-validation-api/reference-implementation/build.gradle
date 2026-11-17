@@ -6,6 +6,7 @@ plugins {
     id 'java'
     id 'jacoco'
     alias(libs.plugins.pitest.sedr)
+    alias(libs.plugins.architecture.validator.sedr)
 }
 
 java {
@@ -113,11 +114,30 @@ pitest {
     mutationThreshold = 100
     outputFormats = ['HTML', 'XML']
     timestampedReports = false
-    // Only so that the empty skeleton builds: once there is code there are mutants, and the
-    // threshold above applies to every one of them.
-    failWhenNoMutations = false
 }
 
 tasks.named('check') {
     dependsOn 'pitest'
+}
+
+// Architecture: the Architecture Validator's built-in Hexagonal rules and the Spring rule pack.
+// The Domain Validation API rule pack joins them once it is published.
+architectureValidator {
+    basePackage = 'com.arc_e_tect.payments'
+    junitVersion = libs.versions.junit.sedr.get()
+    hexagonalArchitecture {
+        // The verdict model every validation shares is domain model too, so the built-in rules guard it.
+        domainModel = ['..application.domain.model..', '..validation.verdict..']
+        // java.text for java.text.Normalizer, which strips diacritics when names are compared.
+        domainAllowedPackages = ['java.lang..', 'java.time..', 'java.util..', 'java.math..', 'java.text..']
+        namingConventionsEnabled = true
+    }
+}
+
+dependencies {
+    testArchitectureImplementation libs.hexagonal.spring.rules.sedr
+}
+
+tasks.named('check') {
+    dependsOn 'testArchitecture'
 }

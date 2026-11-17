@@ -328,6 +328,20 @@ The webhook and the Kafka event share one `ValidationCompletedEventV1` schema, w
 
 |2026-11-17
 |Responses carry `Cache-Control: no-store` and request bodies are never logged; there is no in-service result cache.
+|2026-11-17
+|A verdict is invalid if, and only if, it has an error finding, and an indeterminate verdict has no details; a finding's pointer is a JSON Pointer that starts with `/`.
+
+|2026-11-17
+|The register's answer is domain model, `RegisteredAccountHolder`: registered with a name, unknown, or unavailable; the outbound port returns it.
+An unknown IBAN gives the same `NAME_IBAN_MISMATCH` finding as no match.
+
+|2026-11-17
+|The domain checks its own input as well as the contract does: an `Iban` has the contract's shape and answers whether its mod-97 checksum is right; a `PayeeClaim` has a name of 1 to 70 characters.
+
+|2026-11-17
+|Jaro-Winkler is implemented in the domain, with the standard definition (a matching window of half the longer length minus one, a prefix of at most 4 and a scale of 0.1); the threshold 0.90 is inclusive, shown by `abcd` and `abcdxyzq`, whose similarity is 0.9 exactly.
+Names are normalised with `java.text.Normalizer`, so `java.text..` is added to the Architecture Validator's `domainAllowedPackages`.
+
 |===
 
 == Testing
