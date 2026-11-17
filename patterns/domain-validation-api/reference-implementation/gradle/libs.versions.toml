@@ -23,12 +23,16 @@ domain-validation-rules-sedr = { module = "com.arc-e-tect.architecture-validator
 spring-boot-starter-webmvc-sedr = { module = "org.springframework.boot:spring-boot-starter-webmvc" }
 spring-boot-starter-validation-sedr = { module = "org.springframework.boot:spring-boot-starter-validation" }
 spring-boot-starter-test-sedr = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-test-sedr = { module = "org.springframework:spring-test" }
 mockito-core-sedr = { module = "org.mockito:mockito-core" }
 junit-platform-suite-sedr = { module = "org.junit.platform:junit-platform-suite" }
 
 cucumber-java-sedr = { module = "io.cucumber:cucumber-java", version.ref = "cucumber-sedr" }
 cucumber-spring-sedr = { module = "io.cucumber:cucumber-spring", version.ref = "cucumber-sedr" }
 cucumber-junit-platform-engine-sedr = { module = "io.cucumber:cucumber-junit-platform-engine", version.ref = "cucumber-sedr" }
+
+# The starter of this repository, included as a build: no version.
+validation-execution-sedr = { module = "com.arc-e-tect.patterns:validation-execution" }
 
 [bundles]
 

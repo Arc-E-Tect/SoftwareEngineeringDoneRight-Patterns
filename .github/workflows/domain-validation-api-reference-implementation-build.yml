@@ -6,6 +6,8 @@ on:
       - maintenance
     paths:
       - 'patterns/domain-validation-api/reference-implementation/**'
+      # The service includes the asynchronous execution starter as a build.
+      - 'patterns/domain-validation-api/validation-execution/**'
       # The service is built against the contract the build publishes from the specification library.
       - 'api/**'
       - 'release/**'

@@ -55,6 +55,7 @@ dependencies {
     implementation springBootBom
     implementation libs.spring.boot.starter.webmvc.sedr
     implementation libs.spring.boot.starter.validation.sedr
+    implementation libs.validation.execution.sedr
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -194,6 +195,8 @@ testing {
                 implementation springBootBom
                 // For the one static call a unit test cannot avoid otherwise: SpringApplication.run.
                 implementation libs.mockito.core.sedr
+                // A request for the controller to answer, without a Spring context.
+                implementation libs.spring.test.sedr
             }
         }
 
