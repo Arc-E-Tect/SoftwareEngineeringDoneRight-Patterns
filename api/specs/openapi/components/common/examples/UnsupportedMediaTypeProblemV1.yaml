@@ -1,0 +1,7 @@
+summary: The body is plain text, not JSON.
+value:
+  type: https://api.example.com/problems/unsupported-media-type
+  title: Unsupported Media Type
+  status: 415
+  detail: Content-Type 'text/plain' is not supported.
+  instance: /payments/v1/validations/name-iban-match

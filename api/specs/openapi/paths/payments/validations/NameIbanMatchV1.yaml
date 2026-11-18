@@ -70,6 +70,33 @@ post:
           examples:
             InvalidRequest:
               $ref: '../../../components/common/examples/InvalidRequestProblemV1.yaml'
+    '406':
+      description: >-
+        The request's `Accept` header admits neither `application/json` nor `application/problem+json`.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../../../components/common/responses/errors/NotAcceptableProblemV1.yaml'
+          examples:
+            NotAcceptable:
+              $ref: '../../../components/common/examples/NotAcceptableProblemV1.yaml'
+    '415':
+      description: >-
+        The request has a body, but its `Content-Type` is not `application/json`.
+        A request without a body has no `Content-Type` either, and is a `400`.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../../../components/common/responses/errors/UnsupportedMediaTypeProblemV1.yaml'
+          examples:
+            UnsupportedMediaType:
+              $ref: '../../../components/common/examples/UnsupportedMediaTypeProblemV1.yaml'
     '422':
       description: >-
         The request is well-formed, but cannot be processed:

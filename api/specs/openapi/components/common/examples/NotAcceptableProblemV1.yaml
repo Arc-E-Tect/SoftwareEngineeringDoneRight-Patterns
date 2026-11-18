@@ -1,0 +1,7 @@
+summary: The client accepts only plain text.
+value:
+  type: https://api.example.com/problems/not-acceptable
+  title: Not Acceptable
+  status: 406
+  detail: 'Acceptable representations: [application/json, application/problem+json].'
+  instance: /payments/v1/validations/name-iban-match

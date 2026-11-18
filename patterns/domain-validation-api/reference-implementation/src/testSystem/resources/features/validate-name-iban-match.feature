@@ -103,6 +103,18 @@ Feature: Validate a name against an IBAN
     And the answer is a problem of type "https://api.example.com/problems/invalid-request"
     And the answer is not stored
 
+  Scenario: A body of a media type the contract does not accept
+    When a client sends a valid request as "text/plain"
+    Then the answer is 415
+    And the answer is a problem of type "https://api.example.com/problems/unsupported-media-type"
+    And the answer is not stored
+
+  Scenario: A client that accepts no media type the contract answers with
+    When a client sends a valid request, accepting only "text/plain"
+    Then the answer is 406
+    And the answer is a problem of type "https://api.example.com/problems/not-acceptable"
+    And the answer is not stored
+
   Scenario: An Idempotency-Key that is not a lower-case UUID
     When a payer validates the name "Jan de Vries" against the IBAN "NL91ABNA0417164300", preferring an asynchronous answer with Idempotency-Key "Not-A-UUID"
     Then the answer is 400

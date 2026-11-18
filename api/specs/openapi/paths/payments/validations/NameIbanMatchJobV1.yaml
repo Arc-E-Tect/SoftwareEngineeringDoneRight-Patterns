@@ -52,6 +52,19 @@ get:
           examples:
             NotFound:
               $ref: '../../../components/common/examples/ValidationJobNotFoundProblemV1.yaml'
+    '406':
+      description: >-
+        The request's `Accept` header admits neither `application/json` nor `application/problem+json`.
+      headers:
+        Cache-Control:
+          $ref: '../../../components/validation/headers/CacheControlV1.yaml'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '../../../components/common/responses/errors/NotAcceptableProblemV1.yaml'
+          examples:
+            NotAcceptable:
+              $ref: '../../../components/common/examples/NotAcceptableProblemV1.yaml'
     '500':
       description: An unexpected server-side error occurred.
       headers:

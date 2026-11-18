@@ -35,7 +35,9 @@ import java.util.stream.Collectors;
  * Answers the problems the contract declares for what the service does not answer itself: a
  * request that breaks the contract with {@code 400} and the invalid-request problem, and what fails
  * unexpectedly with {@code 500} and the internal-server-error problem, which says nothing of what
- * failed. Every problem, these and those the service answers itself, is {@code no-store}.
+ * failed. The {@code 406} and {@code 415} Spring answers for a media type the contract does not
+ * declare get the contract's not-acceptable and unsupported-media-type types. Every problem, these
+ * and those the service answers itself, is {@code no-store}.
  *
  * <p>The invalid-request problem has an error for every place the request breaks the contract that
  * can be named: a member of the body by its JSON Pointer, a header or a path parameter by the name
@@ -47,6 +49,10 @@ public class ContractProblemHandler extends ResponseEntityExceptionHandler {
 
     private static final URI INVALID_REQUEST = URI.create("https://api.example.com/problems/invalid-request");
     private static final URI INTERNAL_SERVER_ERROR = URI.create("https://api.example.com/problems/internal-server-error");
+    /** The types of the media-type problems Spring answers itself, by status; their titles are already the contract's. */
+    private static final Map<Integer, URI> MEDIA_TYPE_PROBLEMS = Map.of(
+            HttpStatus.NOT_ACCEPTABLE.value(), URI.create("https://api.example.com/problems/not-acceptable"),
+            HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(), URI.create("https://api.example.com/problems/unsupported-media-type"));
     private static final String DOES_NOT_MATCH = "The request does not match the contract.";
     private static final String UNEXPECTED = "An unexpected error occurred while processing the request.";
 
@@ -94,8 +100,9 @@ public class ContractProblemHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
-     * Every problem is not stored; a {@code 400} is the contract's invalid-request problem, and a
-     * {@code 5xx} its internal-server-error problem, whatever Spring made of it.
+     * Every problem is not stored; a {@code 400} is the contract's invalid-request problem, a
+     * {@code 406} or {@code 415} its media-type problem, and a {@code 5xx} its internal-server-error
+     * problem, whatever Spring made of it.
      */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode,
@@ -108,9 +115,13 @@ public class ContractProblemHandler extends ResponseEntityExceptionHandler {
                 : body;
         // Spring makes the problem of its own exceptions here; it answers nothing once the response is committed.
         ResponseEntity<Object> response = super.handleExceptionInternal(ex, answered, notStored, statusCode, request);
-        if (response != null && statusCode.value() == HttpStatus.BAD_REQUEST.value() && response.getBody() instanceof ProblemDetail problem) {
-            problem.setType(INVALID_REQUEST);
-            problem.setTitle("Invalid Request");
+        if (response != null && response.getBody() instanceof ProblemDetail problem) {
+            if (statusCode.value() == HttpStatus.BAD_REQUEST.value()) {
+                problem.setType(INVALID_REQUEST);
+                problem.setTitle("Invalid Request");
+            } else if (MEDIA_TYPE_PROBLEMS.containsKey(statusCode.value())) {
+                problem.setType(MEDIA_TYPE_PROBLEMS.get(statusCode.value()));
+            }
         }
         return response;
     }
