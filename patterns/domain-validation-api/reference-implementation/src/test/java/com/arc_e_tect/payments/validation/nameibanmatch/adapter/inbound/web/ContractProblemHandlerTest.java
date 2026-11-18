@@ -163,6 +163,13 @@ class ContractProblemHandlerTest {
         }
 
         @Test
+        @DisplayName("with a JSON Pointer that escapes the ~ and / of a member's name")
+        void withAPointerThatEscapesTheName() {
+            assertEquals(List.of(error("is not a member the contract declares", "/a~1b~0c~01")),
+                    errors(unreadable("{\"iban\": \"NL91ABNA0417164300\", \"accountHolderName\": \"Jan de Vries\", \"a/b~c~1\": \"Jan\"}")));
+        }
+
+        @Test
         @DisplayName("with an error at the item of an array that breaks it")
         void withAnErrorAtAnArrayItem() {
             assertEquals(List.of(error("has the wrong type for the contract", "/0")), errors(unreadableList("[{}]")));
