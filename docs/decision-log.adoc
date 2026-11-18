@@ -274,6 +274,10 @@ Java's `\s` is narrower than ECMAScript's, so a name of only, say, em spaces pas
 |Both operations declare `406 Not Acceptable`, and the validation `415 Unsupported Media Type` (bundle 0.1.0, an addition; code review finding API-001): the service answered them already, and a status the contract does not declare is one a client cannot be generated to handle.
 Each has a problem type of its own, `https://api.example.com/problems/not-acceptable` and `https://api.example.com/problems/unsupported-media-type`, as every other problem of the contract has, rather than `about:blank`.
 The TranscriberJ derives a contract case for each from the declared status alone, so no change to the TranscriberJ was needed.
+
+|2026-11-18
+|The lint configuration follows the reference API's again, with its new rule `rule/request-body-declares-415` (SoftwareEngineeringDoneRight-API#129): an operation under `paths` with a request body that does not declare `415` is a warning, so that the gap code review finding API-001 found is caught in every library that uses the configuration.
+The validation declares `415`, so the rule warns for nothing here; the `validationCompleted` webhook is not held to it, as its responses are the subscribers'.
 |===
 
 == OpenAPI Generator
