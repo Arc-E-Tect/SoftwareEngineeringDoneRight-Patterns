@@ -44,7 +44,7 @@ class NameMatchRuleTest {
     class ExactMatch {
 
         @ParameterizedTest(name = "\"{0}\"")
-        @ValueSource(strings = {"Jan de Vries", "JAN DE VRIES", " jan  de vries ", "Ján de Vríes"})
+        @ValueSource(strings = {"Jan de Vries", "JAN DE VRIES", " jan  de vries ", "Ján de Vríes", "Jan de Vries"})
         @DisplayName("is valid")
         void isValid(String name) {
             assertEquals(Outcome.VALID, check(name, JAN).outcome());

@@ -84,6 +84,7 @@ Feature: Validate a name against an IBAN
       | {"iban": "NL91ABNA0417164300", "accountHolderName": null}                                               | /accountHolderName | the name is null                           |
       | {"iban": ["NL91ABNA0417164300"], "accountHolderName": "Jan de Vries"}                                   | /iban              | the IBAN is not a string                   |
       | {"iban": "NL91ABNA0417164300", "accountHolderName": "Jan de Vries", "nickname": "Jan"}                  | /nickname          | the body has a member the contract lacks   |
+      | {"iban": "NL91ABNA0417164300", "accountHolderName": "Jan de Vries", "a/b~c": "Jan"}                     | /a~1b~0c           | that member's name has a / and a ~         |
       | {"iban": "NL91ABNA0417164300", "accountHolderName": "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"} | /accountHolderName | the name is too long |
 
   Scenario Outline: A request that breaks the contract as a whole
@@ -96,6 +97,23 @@ Feature: Validate a name against an IBAN
       | body                                       | because                 |
       | ["NL91ABNA0417164300", "Jan de Vries"]     | the body is no object   |
       | {"iban": "NL91ABNA0417164300",             | the body is not JSON    |
+
+  Scenario Outline: A name of only Unicode whitespace is refused
+    When a client sends the request {"iban": "NL91ABNA0417164300", "accountHolderName": "<name>"}
+    Then the answer is 400
+    And the answer is a problem of type "https://api.example.com/problems/invalid-request"
+    And the answer is not stored
+
+    Examples:
+      | name           | because                       |
+      |      | em spaces                     |
+      |      | no-break spaces               |
+
+  Scenario: A name written with other whitespace is the same name
+    When a payer validates the name "Jan de Vries" against the IBAN "NL91ABNA0417164300"
+    Then the answer is 200
+    And the outcome is "valid"
+    And the match is "exact"
 
   Scenario: A request without a body
     When a client sends a request without a body
