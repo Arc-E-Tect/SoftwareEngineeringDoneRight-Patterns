@@ -11,10 +11,11 @@ post:
     With `Prefer: respond-async` and an `Idempotency-Key`, the validation runs as a job instead, and the response is `202 Accepted`.
   x-idempotent: true
   x-validation: true
-  # Prefer: respond-async, with an Idempotency-Key, selects 202; the generated contract
-  # cases of 202 send both, and those of 200 leave Prefer out.
+  # Prefer: respond-async selects 202 and requires an Idempotency-Key: the generated contract
+  # cases of 202 send both, those of 200 leave Prefer out, and an invalid request sends Prefer
+  # without the key.
   x-transcriberj-selected-responses:
-    '202': {in: header, name: Prefer, value: respond-async, with: [Idempotency-Key]}
+    '202': {in: header, name: Prefer, value: respond-async, requires: [Idempotency-Key]}
   parameters:
     - $ref: '../../../components/validation/parameters/PreferHeaderV1.yaml'
     - $ref: '../../../components/validation/parameters/IdempotencyKeyHeaderV1.yaml'
