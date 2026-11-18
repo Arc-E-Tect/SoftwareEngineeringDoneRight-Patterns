@@ -107,6 +107,11 @@ The rules pack in the Library repository follows that repository's `-iff` conven
 |2026-11-17
 |The reference implementation's build publishes its contract from `api/` with the API-Only Publisher to the library's `file` channel, and the API-Only Subscriber 0.4.5 fetches it from there, at `apiContractVersion` in `gradle.properties`, locked in the committed `apionly.lock`.
 The build therefore needs Node; the workflow sets it up and runs on changes to `api/` too.
+
+|2026-11-18
+|Both builds run on Gradle 9.8.2 with a deprecation that Gradle 11 removes, `Configuration.setVisible(boolean)`, which their plugins call: PIT's `info.solidsoft.pitest` 1.19.0 in both, and `org.openapi.generator` 7.27.0 in the reference implementation (code review finding BUILD-001).
+Both are the latest releases, so there is nothing to update to yet; the deprecation is accepted until releases without it exist.
+Before the wrapper moves to Gradle 11, `./gradlew help --warning-mode all --no-configuration-cache` in each project must report no deprecation, if need be after updating these plugins; without `--no-configuration-cache` a reused configuration cache hides the warnings.
 |===
 
 == Architecture
