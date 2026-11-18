@@ -115,6 +115,7 @@ They carry both quality gates: 100% coverage of the project's own code, and a 10
 
 |`testComponent`
 |Component tests: one component with everything outside it mocked, no Spring context.
+A job's life through the use cases and the in-memory store, from submission to the completion that is published, with the executor and the publisher under the test's control.
 |===
 
 == Run

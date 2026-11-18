@@ -543,6 +543,9 @@ A step waits at most 10 seconds for the webhook or the event about its scenario'
 |2026-11-18
 |Phase 6 verifies the work against every requirement of the brief, on a fresh clone with no build cache, and records the result in link:verification-report.adoc[`docs/verification-report.adoc` →], with the evidence and the approved exceptions.
 
+|2026-11-18
+|The starter's `testComponent` runs a job's life as one component with plain JUnit, from submission to the completion that is published: the submit and get use cases with the in-memory store, the executor holding jobs until the test runs them, and a publisher that records what it is told (code review finding TEST-001).
+Coverage and mutation testing remain measured on the unit tests alone.
 |===
 
 == Pattern document
