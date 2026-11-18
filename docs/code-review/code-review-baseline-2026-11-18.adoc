@@ -1,0 +1,322 @@
+= Code Review Baseline: Domain Validation API
+:toc: left
+:toc-title: Contents
+:toclevels: 3
+:icons: font
+
+This is the initial, dated baseline review of the Domain Validation API reference implementation.
+Use link:code-review-prompt.adoc[the reusable review prompt] to repeat this assessment and update the follow-up ledger without deleting this baseline.
+
+== Review identity
+
+[cols="1,3",options="header"]
+|===
+|Field |Value
+
+|Review date
+|2026-11-18
+
+|Repository state
+|Branch `main`, commit `f1f8e73bf1a7495ca798f3c347c7f151433a8876`.
+
+|Baseline source state
+|The reviewed application sources matched the stated commit; the reusable prompt was the only untracked review deliverable before this report was created.
+
+|Primary scope
+|The Domain Validation API pattern document, its reference implementation, the `validation-execution` starter, shared API specifications, project READMEs, and repository documentation.
+
+|Review prompt
+|link:code-review-prompt.adoc[`docs/code-review-prompt.adoc`].
+|===
+
+== Executive summary
+
+The implementation is unusually well documented and has a clear hexagonal structure, typed API boundaries, meaningful behavior-focused unit tests, architecture rules, component/system/contract suites, JaCoCo gates, and PIT mutation gates.
+The clean builds and API checks passed during this review.
+
+The findings below are narrow and actionable rather than a general redesign.
+Three concern API-contract correctness and result semantics, two concern starter observability and test completeness, and two are lower-priority build/lifecycle improvements.
+
+The reference implementation intentionally omits authentication, authorization, transport security, secrets handling, and runtime hardening.
+Those documented omissions are not reported as defects in this educational reference implementation.
+
+== Scope and method
+
+The review read the root README, the relevant project and pattern READMEs, the full pattern document, the decision log, the verification report, and the shared API documentation.
+The review inspected the production Java sources in both Gradle projects, the API operation and shared schemas, the Gradle scripts and catalogs, and representative unit, component, contract, and system tests.
+The generated OpenAPI and AsyncAPI documents were built and linted from the API specification library.
+
+The assessment compared implementation behavior with the pattern document, API contract, README instructions, and decisions already recorded in `docs/decision-log.adoc`.
+Each finding has source evidence, an explanation of why it matters, and an implementation recommendation with its expected benefit.
+
+== Findings
+
+=== API-001: Document the implemented 415 response
+
+Severity:: P2 - Important contract completeness issue.
+
+Status:: Open in the baseline.
+
+Evidence:: `ContractProblemHandler.handleHttpMediaTypeNotSupported` delegates to Spring for an unsupported `Content-Type` when a request has a body (`patterns/domain-validation-api/reference-implementation/src/main/java/com/arc_e_tect/payments/validation/nameibanmatch/adapter/inbound/web/ContractProblemHandler.java:73-80`).
+The unit test explicitly expects status 415 for this case (`patterns/domain-validation-api/reference-implementation/src/test/java/com/arc_e_tect/payments/validation/nameibanmatch/adapter/inbound/web/ContractProblemHandlerTest.java:282-293`).
+The OpenAPI operation declares 200, 202, 400, 422, and 500 responses, but not 415 (`api/specs/openapi/paths/payments/validations/NameIbanMatchV1.yaml:38-106`).
+
+Why it is reported:: The running service deliberately returns a status that the published operation contract does not describe, so clients generated from the OpenAPI document cannot discover or generate handling for this observed response.
+The 415 response is semantically appropriate for an unsupported media type under IETF RFC 9110, section 15.5.16.
+
+Recommended improvement:: Keep the current 415 behavior and add a documented 415 Problem Details response and example to the API contract.
+Add a contract or system case for a body sent with an unsupported media type, and update the pattern documentation and decision log to state the behavior.
+
+Why this is worth implementing:: The contract is the shared source of truth used to generate clients and tests, so documenting the status makes error handling predictable without weakening the correct HTTP distinction.
+The API library's documented version-check process will also ensure the contract change receives an appropriate version bump.
+
+External basis:: link:https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.16[IETF RFC 9110, section 15.5.16, Unsupported Media Type].
+
+=== API-002: Escape JSON Pointer reference tokens
+
+Severity:: P2 - Incorrect error-location information for valid JSON member names.
+
+Status:: Open in the baseline.
+
+Evidence:: `ContractProblemHandler.pointer(List<JacksonException.Reference>)` prefixes each raw Jackson property name with `/` without escaping it (`patterns/domain-validation-api/reference-implementation/src/main/java/com/arc_e_tect/payments/validation/nameibanmatch/adapter/inbound/web/ContractProblemHandler.java:146-149`).
+The string-based field pointer helper also emits raw path components (`patterns/domain-validation-api/reference-implementation/src/main/java/com/arc_e_tect/payments/validation/nameibanmatch/adapter/inbound/web/ContractProblemHandler.java:142-144`).
+
+Why it is reported:: A JSON object member name may contain `/` or `~`.
+The resulting context is then not a valid JSON Pointer to that member, which makes the structured error unusable to clients that navigate the request document.
+The existing unknown-member scenario uses a simple name and therefore does not exercise this case.
+
+Recommended improvement:: Escape each reference token using RFC 6901's required substitutions, replacing `~` with `~0` and then `/` with `~1`.
+Add focused tests for an undeclared property containing both characters and assert the resulting pointer identifies the original member.
+
+Why this is worth implementing:: The API promises JSON Pointer locations for body errors, and correct escaping preserves that promise for every legal JSON property name rather than only ordinary identifiers.
+
+External basis:: link:https://www.rfc-editor.org/rfc/rfc6901.html#section-3[IETF RFC 6901, section 3, JSON Pointer syntax].
+
+=== DOMAIN-001: Normalize Unicode whitespace consistently
+
+Severity:: P2 - Name-comparison behavior can contradict the documented normalization rule.
+
+Status:: Open in the baseline.
+
+Evidence:: `NameNormaliser` collapses whitespace with Java's default `\\s+` regular expression and only strips surrounding whitespace separately (`patterns/domain-validation-api/reference-implementation/src/main/java/com/arc_e_tect/payments/validation/nameibanmatch/application/domain/model/NameNormaliser.java:11-15`).
+The current unit cases cover ordinary spaces and a tab, but not Unicode whitespace (`patterns/domain-validation-api/reference-implementation/src/test/java/com/arc_e_tect/payments/validation/nameibanmatch/application/domain/model/NameNormaliserTest.java:12-23`).
+The pattern decisions define exact matching as equality after normalizing whitespace (`docs/decision-log.adoc:364`).
+A Java 25 probe confirmed that the default `\\s` does not match U+2003 EM SPACE, while the Unicode character class does.
+
+Why it is reported:: An internal U+2003 in an otherwise equivalent name is not collapsed to a normal space, so the exact-match equality check fails and the rule returns a non-exact outcome for names the documented rule says to normalize alike.
+Oracle's Java 25 `Pattern` documentation defines default `\\s` as `[ \\t\\n\\x0B\\f\\r]` unless `UNICODE_CHARACTER_CLASS` is enabled.
+
+Recommended improvement:: Define the intended whitespace set explicitly and normalize it consistently, for example by enabling Unicode character classes or using a code-point predicate aligned with the domain rule.
+Add a normalization test and a rule-level test proving that equivalent Unicode whitespace yields an exact valid match.
+
+Why this is worth implementing:: The validation's central business behavior is deciding whether two names match, and a deterministic Unicode policy avoids avoidable false warnings or rejections across names entered with different keyboards or text systems.
+
+External basis:: link:https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/regex/Pattern.html[Oracle Java SE 25 `Pattern` documentation, predefined character classes and Unicode support].
+
+=== TEST-001: Add real component tests for the starter
+
+Severity:: P3 - A documented test layer currently has no test cases.
+
+Status:: Open in the baseline.
+
+Evidence:: The starter build declares `testComponent` and makes `check` depend on it (`patterns/domain-validation-api/validation-execution/build.gradle:44-60`).
+The README says that this suite covers a component (`patterns/domain-validation-api/validation-execution/README.adoc:113-114`).
+The clean starter build reported `:testComponent NO-SOURCE`, and there is no `src/testComponent` source tree.
+
+Why it is reported:: The build advertises a component-test quality gate that currently executes no tests, so a green `testComponent` task gives no evidence about the starter's end-to-end job behavior at that test level.
+The unit tests cover important individual behaviors, but the README's stated component-level guarantee remains unverified.
+
+Recommended improvement:: Add a small `src/testComponent` suite that exercises job submission, state transition, job lookup, and completion publication with the real in-memory store and controlled executor/publisher collaborators.
+If component testing is intentionally not required for this starter, remove the empty suite and correct the README and decision log instead.
+
+Why this is worth implementing:: The starter is the shared asynchronous execution mechanism, so one component-level test protects the behavior that bounded contexts consume while keeping external services out of the test.
+
+=== OPS-001: Do not silently discard unexpected publisher failures
+
+Severity:: P2 - Operational failures can disappear without a diagnostic.
+
+Status:: Open in the baseline.
+
+Evidence:: `SubmitValidationJobService.publish` catches `RuntimeException` and ignores it (`patterns/domain-validation-api/validation-execution/src/main/java/com/arc_e_tect/validation/async/application/domain/service/SubmitValidationJobService.java:82-89`).
+The pattern says publisher failures are logged, and the publisher port documents that each publisher reports its own failures (`patterns/domain-validation-api/validation-execution/src/main/java/com/arc_e_tect/validation/async/application/port/outbound/ValidationCompletedPublisher.java`).
+
+Why it is reported:: Built-in publishers log their expected transport failures, but an unexpected exception from a publisher, a serializer, or a future publisher implementation is swallowed at this boundary and can leave operators unaware that a completion notification was lost.
+The job correctly remains completed, but the failure is not always observable.
+
+Recommended improvement:: Make the publisher error-reporting contract explicit and ensure thrown failures are logged once at a safe boundary, with the publisher identity and job identifier but without request or result payloads.
+Keep notification best-effort so a failing publisher does not prevent other publishers from running or change the completed job.
+
+Why this is worth implementing:: A lost notification is recoverable by reading the job resource, but without a diagnostic the example teaches silent failure and makes even a reference deployment harder to troubleshoot.
+
+=== LIFE-001: Manage the virtual-thread executor lifecycle
+
+Severity:: P3 - Resource ownership and shutdown behavior are implicit.
+
+Status:: Open in the baseline.
+
+Evidence:: `ValidationExecutionAutoConfiguration` creates `Executors.newVirtualThreadPerTaskExecutor()` inline while constructing the submit service (`patterns/domain-validation-api/validation-execution/src/main/java/com/arc_e_tect/validation/async/configuration/ValidationExecutionAutoConfiguration.java:58-62`).
+The executor is not retained as a Spring bean or otherwise shut down when the application context closes.
+
+Why it is reported:: The executor owns asynchronous tasks but has no explicit lifecycle owner, so application shutdown does not coordinate task completion or executor shutdown.
+Oracle documents that an `ExecutorService` should be shut down and that `close()` waits for submitted tasks to terminate.
+
+Recommended improvement:: Expose the executor as a lifecycle-managed bean, or give the owning service an explicit close/shutdown path that Spring invokes.
+Add a focused lifecycle test showing that shutdown rejects new work and gives already accepted work the documented opportunity to finish.
+
+Why this is worth implementing:: The starter is intended to teach reusable asynchronous execution, and explicit lifecycle ownership avoids orphaned work and makes the component's shutdown behavior understandable even though the example's job store is intentionally in-memory.
+
+External basis:: link:https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/ExecutorService.html[Oracle Java SE 25 `ExecutorService` documentation].
+
+=== BUILD-001: Clear plugin deprecations before a Gradle 11 upgrade
+
+Severity:: P3 - Deferred build compatibility work.
+
+Status:: Open in the baseline.
+
+Evidence:: `./gradlew help --warning-mode all` reports the deprecated `Configuration.setVisible(boolean)` API in the starter build and in the reference build.
+The Gradle problems reports attribute it to `info.solidsoft.pitest` in both projects and `org.openapi.generator` in the reference implementation.
+The plugin versions are pinned in `patterns/domain-validation-api/reference-implementation/gradle/libs.versions.toml:8,14,56,61` and the starter's catalog.
+Gradle's report says this API is scheduled for removal in Gradle 11.
+
+Why it is reported:: The current Gradle 9.8.2 builds pass, but the warning originates in plugins and will become a compatibility issue when the wrapper reaches the announced removal.
+
+Recommended improvement:: Track releases of the PIT and OpenAPI Generator Gradle plugins that remove this deprecated API, update the catalogs when compatible versions are available, and keep `help --warning-mode all` in the upgrade checklist.
+
+Why this is worth implementing:: Addressing plugin deprecations before the next major wrapper upgrade reduces migration risk and prevents a future toolchain change from blocking the reference builds.
+
+External basis:: link:https://docs.gradle.org/9.8.2/userguide/upgrading_version_9.html#deprecate-visible-property[Gradle 9.8.2 upgrade guide, deprecated visibility property].
+
+== Recommended implementation order
+
+[cols="1,1,3,3",options="header"]
+|===
+|Step |Finding |Action |Reason and prerequisite
+
+|1
+|API-001
+|Document the 415 response in the API contract and add a contract/system scenario.
+|This closes the observable contract gap; update the API target version and decision log in the same change.
+
+|2
+|API-002
+|Escape JSON Pointer tokens and test slash/tilde member names.
+|This is an isolated contract-correctness fix and can proceed independently of step 1.
+
+|3
+|DOMAIN-001
+|Choose and implement a Unicode whitespace policy, then test normalization and the name rule.
+|This corrects domain behavior and can proceed independently of the API contract work.
+
+|4
+|OPS-001
+|Make publisher failures observable without failing a completed job or stopping later publishers.
+|This preserves best-effort semantics while making notification loss diagnosable.
+
+|5
+|LIFE-001
+|Give the executor an explicit Spring-managed lifecycle.
+|Complete lifecycle ownership before the new component tests exercise shutdown behavior.
+
+|6
+|TEST-001
+|Add meaningful starter component tests and ensure `testComponent` is no longer `NO-SOURCE`.
+|These tests should verify the job lifecycle and executor behavior after step 5.
+
+|7
+|BUILD-001
+|Update affected plugins when non-deprecated compatible releases are available.
+|This is deferred until plugin support is available and should be completed before moving the wrapper to Gradle 11.
+|===
+
+== Validation performed
+
+[cols="3,1,4",options="header"]
+|===
+|Command or check |Result |Evidence and limitations
+
+|`cd patterns/domain-validation-api/reference-implementation && ./gradlew clean build --no-build-cache`
+|Passed
+|The contract was built and fetched, OpenAPI code was generated, and the unit, component, architecture, contract, and system tasks completed successfully.
+JaCoCo and PIT gates passed, with 238 mutants reported killed at 100 percent.
+One mutation timed out and was counted as killed; the serial forced PIT pass reproduced that result and completed successfully.
+
+|`cd patterns/domain-validation-api/validation-execution && ./gradlew clean build --no-build-cache`
+|Passed
+|JaCoCo and PIT gates passed, with 104 mutants reported killed at 100 percent.
+The `testComponent` task ran with `NO-SOURCE`, as recorded in TEST-001.
+
+|`cd api && npm run apionly -- lint && npm run apionly -- check`
+|Passed
+|The two generated API documents linted and the version check reported the target unchanged since the merge base.
+The OpenAPI lint emitted the existing missing-`minLength` warnings already accepted by the decision log; AsyncAPI lint was valid.
+
+|`./gradlew help --warning-mode all` in both Gradle projects
+|Passed with warnings
+|PIT and, in the reference implementation, OpenAPI Generator use deprecated `Configuration.setVisible(boolean)`, as recorded in BUILD-001.
+
+|Java 25 REPL probe of `Pattern.compile("\\\\s+")`
+|Confirmed DOMAIN-001
+|The default class did not match U+2003 EM SPACE; enabling `Pattern.UNICODE_CHARACTER_CLASS` did.
+|===
+
+== Accepted exceptions and non-findings
+
+The intentionally absent production security controls are documented in the root and project READMEs and are not findings for this reference implementation.
+The in-memory job store retains jobs for the process lifetime, as the decision log and README explicitly describe.
+The two disabled TranscriberJ cases are named and justified in the decision log and are not newly reported.
+The API lint warnings about strings constrained by `const`, `enum`, or `pattern`, and about the event timestamp, are explicitly accepted in the decision log.
+The project already applies relevant build and verification plugins for Spring Boot, API generation/subscription, JaCoCo, PIT, and architecture validation.
+
+== Follow-up comparison ledger
+
+Keep the finding IDs stable in later reviews.
+For each follow-up, record the review date, current commit, evidence, and one of `Open`, `Improved`, `Resolved`, or `Not Reproduced`.
+Do not remove the original baseline finding text when updating its status.
+
+[cols="1,2,2,3",options="header"]
+|===
+|ID |Baseline status |Follow-up status |Notes
+
+|API-001
+|Open
+|Not reviewed
+|Add the contract's 415 response or document a deliberate alternative.
+
+|API-002
+|Open
+|Not reviewed
+|Verify RFC 6901 escaping for `~` and `/` tokens.
+
+|DOMAIN-001
+|Open
+|Not reviewed
+|Verify Unicode whitespace normalization and exact-match behavior.
+
+|TEST-001
+|Open
+|Not reviewed
+|Verify meaningful component tests execute rather than `NO-SOURCE`.
+
+|OPS-001
+|Open
+|Not reviewed
+|Verify unexpected publisher errors remain observable and best effort.
+
+|LIFE-001
+|Open
+|Not reviewed
+|Verify executor ownership and shutdown behavior.
+
+|BUILD-001
+|Open
+|Not reviewed
+|Verify plugin deprecations before a Gradle 11 wrapper upgrade.
+|===
+
+== External references
+
+IETF RFC 9110 defines the HTTP 415 status in section 15.5.16: link:https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.16[HTTP Semantics].
+IETF RFC 6901 defines JSON Pointer token escaping in section 3: link:https://www.rfc-editor.org/rfc/rfc6901.html#section-3[JSON Pointer syntax].
+Oracle documents Java 25 regular-expression character classes and Unicode behavior: link:https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/regex/Pattern.html[`java.util.regex.Pattern`].
+Oracle documents `ExecutorService` shutdown and `close()` behavior: link:https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/concurrent/ExecutorService.html[`java.util.concurrent.ExecutorService`].
+Gradle documents the deprecated visibility property and its planned removal: link:https://docs.gradle.org/9.8.2/userguide/upgrading_version_9.html#deprecate-visible-property[Gradle 9.8.2 upgrade guide].
