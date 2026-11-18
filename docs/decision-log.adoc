@@ -547,4 +547,6 @@ A step waits at most 10 seconds for the webhook or the event about its scenario'
 |2026-11-18
 |Phase 6 edit: the controller's `ValidationExecution.run` call is given the use case's command and the function that reads a result's outcome, with a sentence on why each; the snippet otherwise stays illustrative.
 
+|2026-11-18
+|Code review edit (API-001): the status table has a row for a media type the operation does not declare, `406` or `415` with Problem Details; the snippet of the contract stays illustrative and does not declare them.
 |===

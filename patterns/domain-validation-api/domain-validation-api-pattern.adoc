@@ -305,6 +305,10 @@ The pattern separates two different things that are easy to confuse.
 |`400 Bad Request`
 |Problem Details (RFC 9457)
 
+|The request's or the answer's media type is not one the operation declares
+|`406 Not Acceptable` / `415 Unsupported Media Type`
+|Problem Details (RFC 9457)
+
 |The request is well-formed but cannot be processed, e.g. an unsupported jurisdiction
 |`422 Unprocessable Content`
 |Problem Details (RFC 9457)
