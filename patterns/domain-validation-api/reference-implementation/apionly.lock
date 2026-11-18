@@ -4,7 +4,7 @@
 format 1
 
 target domain-validation-api
-version 0.2.0
+version 0.3.0
 channel file
-sha256 5d61e6e641b4c47f23108ce3dc231974b6844da5edd0c391451ff26eaf4907ba asyncapi.yaml
-sha256 aa89665a1614c48fe8ca2b446cfbe378eadb61c3242ca383b8ba2824af51637e openapi.yaml
+sha256 fd2a1bd5fba22a84072e2db611b2fb49546acedddefd44140efd13cbc96e8894 asyncapi.yaml
+sha256 05ba6cdeeb3a7a5248dd6e8e1b1d0d0e44ebdee1524de2b88cd0a29c673df472 openapi.yaml

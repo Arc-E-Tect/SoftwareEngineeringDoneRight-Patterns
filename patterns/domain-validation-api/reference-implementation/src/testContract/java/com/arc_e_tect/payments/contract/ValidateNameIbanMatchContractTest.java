@@ -8,8 +8,9 @@ import org.junit.jupiter.api.DisplayName;
  *
  * <p>The validation changes no state, so a success case needs none arranged. Whether the service
  * answers {@code 200} or {@code 202} is the request's to say, not the state's: the contract names
- * {@code Prefer: respond-async}, with an {@code Idempotency-Key}, as what selects {@code 202}, so
- * the {@code 202} case sends both, and the {@code 200} cases leave {@code Prefer} out.
+ * {@code Prefer: respond-async} as what selects {@code 202}, and the {@code Idempotency-Key} it
+ * requires, so the {@code 202} case sends both, the {@code 200} cases leave {@code Prefer} out, and
+ * an invalid request sends {@code Prefer} without the key.
  */
 @DisplayName("The contract of POST /v1/validations/name-iban-match")
 class ValidateNameIbanMatchContractTest extends RunningService implements ValidateNameIbanMatchContractTests {

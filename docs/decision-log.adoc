@@ -562,6 +562,10 @@ Coverage and mutation testing remain measured on the unit tests alone.
 The validation says, in `x-transcriberj-selected-responses` (bundle 0.2.0, a minor version for a new extension, as decided), that `Prefer: respond-async` with an `Idempotency-Key` selects `202` (SoftwareEngineeringDoneRight-API#128).
 So `success-202-required` sends both, and `success-200-required` and `success-200-full` leave `Prefer` out; `success-202-full` is not derived, as the `202`'s required request already sends every parameter and the body has no optional member.
 The REST Docs emitter 0.5.0 and the Microcks emitter 2.0.0 work with the TranscriberJ 0.18.0 unchanged.
+
+|2026-11-19
+|The selection requires the `Idempotency-Key` rather than sending it with `Prefer: respond-async` (bundle 0.3.0, TranscriberJ 0.19.0, SoftwareEngineeringDoneRight-API#134): `with` is a hint, `requires` a rule the service keeps, as it refuses `Prefer: respond-async` without a key with `400`.
+So the contract tests have the invalid-request case `header-Idempotency-Key-required` too, which only the system tests covered before.
 |===
 
 == Pattern document
