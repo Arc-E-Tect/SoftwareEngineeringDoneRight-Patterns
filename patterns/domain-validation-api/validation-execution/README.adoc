@@ -56,6 +56,7 @@ The last argument reads the outcome of a result, `valid`, `invalid` or `indeterm
 Every answer has `Cache-Control: no-store`.
 
 Jobs run on virtual threads, and are kept in memory unless the bounded context supplies its own `ValidationJobStore`.
+The executor is the bean `validationJobExecutor`, unless the bounded context supplies its own of that name; Spring closes it when the application stops, which refuses new jobs and waits for the running ones.
 A validation that throws fails its job with the internal-server-error problem, and is logged with the job's identifier, never its request or result.
 
 Once a job has run, the starter tells so with the contract's `ValidationCompletedEventV1`: the job's `validationId`, `validation`, `status`, its `outcome` when it completed, `completedAt` and its `location`.

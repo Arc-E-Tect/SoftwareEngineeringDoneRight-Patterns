@@ -131,8 +131,10 @@ The link:../../../docs/decision-log.adoc[decision log →] has the reasons.
 
 * Names are compared after folding case, diacritics and Unicode whitespace only.
 There is no NFKC normalisation, so full-width letters and ligatures stay as they are, and no transliteration, so `ß` is not `ss` and `Ø` is not `O`.
+* Jobs are kept in memory for as long as the service runs: they are lost when it stops, and never removed while it runs.
 * The completion of a job is published best effort, once: there is no retry and no outbox.
 A notification that is lost is logged, and whoever expected it finds the job by reading it.
+* When the service stops, it waits for the jobs that run; a job's validation is bounded by the scheme's timeout, but nothing bounds the wait itself.
 
 == Versioning
 

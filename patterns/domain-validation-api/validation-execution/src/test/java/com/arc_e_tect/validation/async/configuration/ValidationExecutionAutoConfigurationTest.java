@@ -6,6 +6,7 @@ import com.arc_e_tect.validation.async.adapter.outbound.event.WebhookValidationC
 import com.arc_e_tect.validation.async.adapter.outbound.memory.InMemoryValidationJobStore;
 import com.arc_e_tect.validation.async.application.domain.model.JobProblem;
 import com.arc_e_tect.validation.async.application.domain.model.ValidationCompleted;
+import com.arc_e_tect.validation.async.application.domain.model.ValidationJob;
 import com.arc_e_tect.validation.async.application.port.inbound.GetValidationJobUseCase;
 import com.arc_e_tect.validation.async.application.port.inbound.SubmitValidationJobUseCase;
 import com.arc_e_tect.validation.async.application.port.inbound.command.GetValidationJobCommand;
@@ -44,6 +45,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,6 +64,7 @@ class ValidationExecutionAutoConfigurationTest {
             new ValidationExecutionProperties.Webhook(List.of(URI.create("https://subscriber.example.org/hooks")), Duration.ofMillis(200)),
             new ValidationExecutionProperties.Kafka(true, "payments.validation.completed.v1")));
     private final InMemoryValidationJobStore store = new InMemoryValidationJobStore();
+    private final ExecutorService executor = configuration.validationJobExecutor();
     private final JsonMapper json = JsonMapper.builder().build();
 
     private static ObjectProvider<ValidationCompletedPublisher> publishers(ValidationCompletedPublisher... publishers) {
@@ -71,7 +76,7 @@ class ValidationExecutionAutoConfigurationTest {
     }
 
     private SubmitValidationJobUseCase submit() {
-        return configuration.submitValidationJobUseCase(store, properties, publishers());
+        return configuration.submitValidationJobUseCase(store, executor, properties, publishers());
     }
 
     /** The problem a call answers with; whether it answers with one at all is another test's concern. */
@@ -89,10 +94,49 @@ class ValidationExecutionAutoConfigurationTest {
         RequestContextHolder.resetRequestAttributes();
     }
 
+    @AfterEach
+    void closeTheExecutor() {
+        executor.close();
+    }
+
     @Test
     @DisplayName("stores jobs in memory, unless the bounded context supplies a store")
     void storesJobsInMemory() {
         assertInstanceOf(InMemoryValidationJobStore.class, configuration.validationJobStore());
+    }
+
+    @Test
+    @DisplayName("runs jobs on virtual threads")
+    void runsJobsOnVirtualThreads() throws Exception {
+        assertEquals(Boolean.TRUE, executor.submit(() -> Thread.currentThread().isVirtual()).get(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    @DisplayName("lets a running job finish when the executor is closed, and refuses new ones")
+    void letsARunningJobFinishWhenClosed() {
+        CountDownLatch running = new CountDownLatch(1);
+        SubmitValidationJobUseCase submit = submit();
+        ValidationJobView job = ((SubmitValidationJobResult.Accepted) submit.submit(new SubmitValidationJobCommand(
+                "name-iban-match", "key", "request", "/validations", () -> {
+                    running.countDown();
+                    sleep(Duration.ofMillis(200));
+                    return new JobOutcome.Completed("result", ValidationOutcome.VALID);
+                }))).job();
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> running.await());
+
+        executor.close();
+
+        assertEquals(List.of(ValidationJob.Status.COMPLETED, true),
+                List.of(store.find("name-iban-match", job.validationId()).orElseThrow().status(), executor.isShutdown()));
+        assertThrows(RejectedExecutionException.class, () -> executor.execute(() -> { }));
+    }
+
+    private static void sleep(Duration duration) {
+        try {
+            Thread.sleep(duration);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @Test
@@ -116,7 +160,7 @@ class ValidationExecutionAutoConfigurationTest {
     @DisplayName("publishes the completion of a job to the publishers there are")
     void publishesTheCompletion() throws Exception {
         CompletableFuture<ValidationCompleted> published = new CompletableFuture<>();
-        SubmitValidationJobUseCase submit = configuration.submitValidationJobUseCase(store, properties, publishers(published::complete));
+        SubmitValidationJobUseCase submit = configuration.submitValidationJobUseCase(store, executor, properties, publishers(published::complete));
         ValidationJobView job = ((SubmitValidationJobResult.Accepted) submit.submit(new SubmitValidationJobCommand(
                 "name-iban-match", "key", "request", "/validations",
                 () -> new JobOutcome.Completed("result", ValidationOutcome.VALID)))).job();

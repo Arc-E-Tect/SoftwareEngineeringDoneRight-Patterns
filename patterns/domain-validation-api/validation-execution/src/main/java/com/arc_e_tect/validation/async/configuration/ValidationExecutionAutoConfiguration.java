@@ -15,6 +15,7 @@ import com.arc_e_tect.validation.async.application.port.outbound.ValidationJobSt
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -34,12 +35,16 @@ import java.net.http.HttpClient;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
  * Sets up the asynchronous execution in a servlet web application: the use cases, the
  * {@link ValidationExecution} a validation's controller uses, and an in-memory job store unless the
- * bounded context supplies its own {@link ValidationJobStore}. Jobs run on virtual threads.
+ * bounded context supplies its own {@link ValidationJobStore}. Jobs run on virtual threads, of the
+ * executor {@value #JOB_EXECUTOR} unless the bounded context supplies its own of that name; Spring
+ * closes it when the application stops, which refuses new jobs and waits for the running ones.
  *
  * <p>The completion of a job is posted to the webhook's subscribers, and sent to Kafka when the
  * bounded context has Kafka and turns publication on.
@@ -49,17 +54,28 @@ import java.util.concurrent.Executors;
 @EnableConfigurationProperties(ValidationExecutionProperties.class)
 public class ValidationExecutionAutoConfiguration {
 
+    /** The name of the executor jobs run on. */
+    public static final String JOB_EXECUTOR = "validationJobExecutor";
+
     @Bean
     @ConditionalOnMissingBean
     public ValidationJobStore validationJobStore() {
         return new InMemoryValidationJobStore();
     }
 
+    /** A virtual thread per job; closed with the application context, which waits for the jobs that run. */
+    @Bean(name = JOB_EXECUTOR, destroyMethod = "close")
+    @ConditionalOnMissingBean(name = JOB_EXECUTOR)
+    public ExecutorService validationJobExecutor() {
+        return Executors.newVirtualThreadPerTaskExecutor();
+    }
+
     @Bean
-    public SubmitValidationJobUseCase submitValidationJobUseCase(ValidationJobStore store, ValidationExecutionProperties properties,
+    public SubmitValidationJobUseCase submitValidationJobUseCase(ValidationJobStore store, @Qualifier(JOB_EXECUTOR) Executor executor,
+                                                                 ValidationExecutionProperties properties,
                                                                  ObjectProvider<ValidationCompletedPublisher> publishers) {
-        return new SubmitValidationJobService(store, Executors.newVirtualThreadPerTaskExecutor(), Clock.systemUTC(),
-                publishers.orderedStream().toList(), unexpectedFailure(properties));
+        return new SubmitValidationJobService(store, executor, Clock.systemUTC(), publishers.orderedStream().toList(),
+                unexpectedFailure(properties));
     }
 
     @Bean
