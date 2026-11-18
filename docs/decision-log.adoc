@@ -24,6 +24,11 @@ Newest decisions are added at the end of their section.
 |2026-11-17
 |Commits on a branch follow the TDD cycle: a `test:` commit with the failing test, a `feat:` commit that makes it pass, and a `refactor:` commit when there is one.
 Pull requests are squash-merged, so the cycle is visible on the pull-request branch only.
+
+|2026-11-19
+|Code reviews live in `docs/code-review/`: the prompt, one report per review, and an index of the reviews and of what came of each finding.
+The prompt declares a `:prompt-version:` and keeps a history; a report records the prompt's version and its blob ID, which names the exact text whatever the merge strategy, as a squash merge leaves no commit of an intermediate version on `main`.
+A report stays as the review wrote it; the index links a finding to the pull requests that addressed it and the review that verified it.
 |===
 
 == Repository and hardening

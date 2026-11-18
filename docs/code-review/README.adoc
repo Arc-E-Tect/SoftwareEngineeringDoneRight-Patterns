@@ -1,0 +1,94 @@
+= Code reviews
+:toc: left
+:toclevels: 2
+:icons: font
+
+[NOTE]
+.Where the links in this document go
+====
+`↗` leads to an external site, `→` to another file in this repository, and `§` to a section of this same file.
+====
+
+The code reviews of this repository: the prompt each review runs, the report each review writes, and what came of each finding.
+The review index ties them together, so that it is clear which prompt produced which report, and which pull requests a finding led to.
+
+== Running a review
+
+. Use link:code-review-prompt.adoc[the review prompt →], at its current version.
+. Set `PROMPT_FILE` to `docs/code-review/code-review-prompt.adoc`, `BASELINE_REPORT` to the latest report in <<runs,Reviews §>>, and `OUTPUT_REPORT` to `docs/code-review/code-review-follow-up-<date>.adoc`.
+. The review records the prompt's version and blob ID in its report, adds its row to <<runs,Reviews §>>, and fills in the _Verified in_ column of <<findings,Findings §>>.
+. A change to the prompt raises its `:prompt-version:` and adds a row to its history, in a commit of its own, so that every report names the exact text it was produced with.
+
+A blob ID identifies a file's exact content, whatever the merge strategy; `git log --find-object=<blob ID>` finds the commits that hold it.
+
+[#runs]
+== Reviews
+
+[cols="1,2,2,1,2,2",options="header"]
+|===
+|Date |Report |Prompt |Compared against |Revision reviewed |Outcome
+
+|2026-11-18
+|link:code-review-baseline-2026-11-18.adoc[Baseline →]
+|Version 1, blob `2af4700`, on `main` since `2b214cd`
+|None
+|`main` at `f1f8e73`
+|Seven findings, all open.
+|===
+
+The baseline predates the prompt's version and blob ID, so it does not name them itself; it was produced with version 1, the prompt exactly as commit `2b214cd` holds it.
+It names the prompt as `docs/code-review-prompt.adoc`, where it was when the review ran; the prompt is in this folder now, under the same name, so the report's link still works.
+
+[#findings]
+== Findings
+
+What came of each finding: the pull requests that addressed it, and the review that verified it.
+A finding's text and its status at a review stay in that review's report; this table only links them.
+
+[cols="1,1,2,4,2",options="header"]
+|===
+|ID |Severity |Raised in |Addressed by |Verified in
+
+|API-001
+|P2
+|Baseline
+|Patterns link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/pull/14[#14 ↗]: the contract declares `406` and `415`, with problem types of their own.
+The lint rule that an operation with a request body declares `415`, with the reference API's `415`s: API link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-API/pull/130[#130 ↗], adopted in Patterns link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/pull/20[#20 ↗].
+|Not yet
+
+|API-002
+|P2
+|Baseline
+|Patterns link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/pull/15[#15 ↗]: an undeclared member's JSON Pointer escapes `~` and `/`.
+|Not yet
+
+|DOMAIN-001
+|P2
+|Baseline
+|Patterns link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/pull/15[#15 ↗]: Unicode whitespace in a name is whitespace, where names are normalised and where a blank one is refused; NFKC and transliteration are documented as known simplifications.
+|Not yet
+
+|OPS-001
+|P2
+|Baseline
+|Patterns link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/pull/16[#16 ↗]: a failing publisher and a failing validation are logged, without the request or the result.
+|Not yet
+
+|TEST-001
+|P3
+|Baseline
+|Patterns link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/pull/16[#16 ↗]: the starter's `testComponent` runs a job's life as one component.
+|Not yet
+
+|LIFE-001
+|P3
+|Baseline
+|Patterns link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/pull/16[#16 ↗]: the executor is the bean `validationJobExecutor`, which Spring closes.
+|Not yet
+
+|BUILD-001
+|P3
+|Baseline
+|Patterns link:https://github.com/Arc-E-Tect/SoftwareEngineeringDoneRight-Patterns/pull/18[#18 ↗]: deferred and recorded in the decision log, as both plugins were at their latest release; to be cleared before the Gradle 11 wrapper.
+|Not yet
+|===
