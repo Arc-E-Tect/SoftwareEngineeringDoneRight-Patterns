@@ -28,7 +28,7 @@ They must not be used as-is in production; link:../README.adoc[the repository RE
 |Target |Version |What it is
 
 |`domain-validation-api`
-|link:specs/openapi/bundles/domain-validation-api.bundle.properties[0.2.0 →]
+|link:specs/openapi/bundles/domain-validation-api.bundle.properties[0.3.0 →]
 |The contract of the link:../patterns/domain-validation-api/README.adoc[Domain Validation API →] reference implementation: the payments bounded context with the `name-iban-match` validation.
 An OpenAPI 3.1.1 document with the validation, its job resource and the `validationCompleted` webhook, and an AsyncAPI 3.1.0 document with the `ValidationCompleted` event.
 |===
