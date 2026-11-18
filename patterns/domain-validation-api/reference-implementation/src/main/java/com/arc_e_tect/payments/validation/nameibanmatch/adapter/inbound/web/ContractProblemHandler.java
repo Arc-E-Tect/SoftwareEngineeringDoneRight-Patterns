@@ -149,15 +149,24 @@ public class ContractProblemHandler extends ResponseEntityExceptionHandler {
         return Map.of("message", message, "context", context);
     }
 
-    /** The JSON Pointer of a field as Spring names it: {@code details.findings[2].rule} is {@code /details/findings/2/rule}. */
+    /**
+     * The JSON Pointer of a field as Spring names it: {@code details.findings[2].rule} is {@code /details/findings/2/rule}.
+     * A field is a member the contract declares, a Java name, so none has a {@code ~} or a {@code /} to escape.
+     */
     private static String pointer(String field) {
         return "/" + field.replace("[", ".").replace("]", "").replace('.', '/');
     }
 
+    /** The JSON Pointer of where Jackson failed, which may be a member the contract does not declare, with any name. */
     private static String pointer(List<JacksonException.Reference> path) {
         return path.stream()
-                .map(reference -> "/" + (reference.getPropertyName() == null ? reference.getIndex() : reference.getPropertyName()))
+                .map(reference -> "/" + (reference.getPropertyName() == null ? reference.getIndex() : token(reference.getPropertyName())))
                 .collect(Collectors.joining());
+    }
+
+    /** A member's name as a JSON Pointer reference token (RFC 6901): {@code ~} is {@code ~0} and {@code /} is {@code ~1}, in that order. */
+    private static String token(String name) {
+        return name.replace("~", "~0").replace("/", "~1");
     }
 
     private static String message(DatabindException unreadable) {
@@ -166,7 +175,10 @@ public class ContractProblemHandler extends ResponseEntityExceptionHandler {
                 : "has the wrong type for the contract";
     }
 
-    /** A header or a path parameter by the name the contract gives it; a member of the body by its JSON Pointer. */
+    /**
+     * A header or a path parameter by the name the contract gives it; a member of the body by its
+     * JSON Pointer, whose members the contract declares, so none has a {@code ~} or a {@code /} to escape.
+     */
     private static String context(ConstraintViolation<?> violation, HandlerMethod handler) {
         StringBuilder pointer = new StringBuilder();
         for (Path.Node node : violation.getPropertyPath()) {

@@ -124,6 +124,14 @@ With a broker on `localhost:9092` and a subscriber listening on port 9000:
 
 The link:../validation-execution/README.adoc[validation-execution starter →] lists these settings.
 
+== Known limitations
+
+Besides the security it deliberately omits, the example simplifies what a production service would need to decide on.
+The link:../../../docs/decision-log.adoc[decision log →] has the reasons.
+
+* Names are compared after folding case, diacritics and Unicode whitespace only.
+There is no NFKC normalisation, so full-width letters and ligatures stay as they are, and no transliteration, so `ß` is not `ss` and `Ø` is not `O`.
+
 == Versioning
 
 The version is in `gradle.properties`.

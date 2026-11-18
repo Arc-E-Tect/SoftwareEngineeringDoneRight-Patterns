@@ -2,6 +2,8 @@ package com.arc_e_tect.payments.validation.nameibanmatch.application.domain.mode
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,10 +41,17 @@ class PayeeClaimTest {
         assertThrows(IllegalArgumentException.class, () -> new PayeeClaim(IBAN, name));
     }
 
+    @ParameterizedTest(name = "\"{0}\"")
+    @ValueSource(strings = {"", "  ", "\t\n", "  ", " ", " ", " "})
+    @DisplayName("is refused with a name of only whitespace, Unicode's: an em space, a no-break space")
+    void isRefusedWithABlankName(String name) {
+        assertThrows(IllegalArgumentException.class, () -> new PayeeClaim(IBAN, name));
+    }
+
     @Test
-    @DisplayName("is refused with a blank name")
-    void isRefusedWithABlankName() {
-        assertThrows(IllegalArgumentException.class, () -> new PayeeClaim(IBAN, "  "));
+    @DisplayName("accepts a name with a no-break space in it")
+    void acceptsANameWithANoBreakSpace() {
+        assertEquals("Jan de Vries", new PayeeClaim(IBAN, "Jan de Vries").accountHolderName());
     }
 
     @Test

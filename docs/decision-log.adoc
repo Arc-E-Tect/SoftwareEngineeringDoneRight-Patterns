@@ -470,6 +470,15 @@ The key and the event are sent as text, through a template derived from Spring B
 
 |2026-11-18
 |`ContractProblemHandler` gives the `406` and `415` problems Spring answers itself the contract's problem types; their titles, Spring's reason phrases, are already the contract's, and their details and `Accept` headers are Spring's.
+
+|2026-11-18
+|An undeclared member's JSON Pointer escapes its name as RFC 6901 requires, `~` as `~0` and then `/` as `~1`, so `a/b~c` is at `/a~1b~0c` (code review finding API-002).
+The pointers of bean validation need no escaping: they name members the contract declares, whose names are Java names.
+
+|2026-11-18
+|Whitespace in a name is Unicode's, an em space or a no-break space included, both where names are normalised and where a blank name is refused (code review finding DOMAIN-001).
+A name of only no-break spaces is therefore refused with the contract's `400`, as a name of only em spaces already was; `String.isBlank` and Java's default `\s` do not count no-break spaces as whitespace.
+Normalising folds nothing else: no NFKC, so full-width letters and ligatures stay as they are, and no transliteration, so `ß` is not `ss` and `Ø` is not `O`; that is a known simplification of the example.
 |===
 
 == Testing
