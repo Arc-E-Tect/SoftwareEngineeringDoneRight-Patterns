@@ -91,6 +91,7 @@ The Java builds need Java 25; each project brings its own Gradle wrapper.
 The `api` library needs Node.js instead, as its README says.
 
 link:docs/decision-log.adoc[The decision log →] records every decision taken for this repository, with its reason.
+link:docs/code-review/README.adoc[The code reviews →] hold the review prompt, each review's report, and what came of each finding.
 
 [#security]
 == Security

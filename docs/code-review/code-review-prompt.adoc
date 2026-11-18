@@ -1,6 +1,9 @@
 = Reusable Cross-Project Code Review Prompt
 :toc: left
 :toclevels: 2
+:prompt-version: 2
+
+Prompt version {prompt-version}; <<history,Prompt history §>> says what each version changed.
 
 Use this prompt to perform an evidence-based review of a software project and, when a prior report exists, compare the current state against it.
 Replace the values below when needed.
@@ -8,6 +11,7 @@ Replace the values below when needed.
 
 [source,text]
 ----
+PROMPT_FILE: <repository-relative path of this prompt, so the report can identify it>
 PROJECT_CONTEXT: <briefly describe the project, intended users, and any important constraints>
 REVIEW_SCOPE: <paths, components, or "whole repository">
 BASELINE_REPORT: <path to an earlier review report, or NONE>
@@ -32,6 +36,7 @@ Scope:
 Method:
 
 * Inspect the repository at the current revision and record the date, branch, commit or revision identifier when available, review scope, relevant tool versions, and commands actually run.
+* Record which prompt produced the report: the version PROMPT_FILE declares as `:prompt-version:`, its blob ID (`git rev-parse HEAD:<PROMPT_FILE>`, which identifies the exact text whatever the merge strategy), and whether the working copy of PROMPT_FILE differs from that blob; if it differs, say how.
 * Verify claims with source evidence.
 * Report concrete behavior, risk, or material maintainability/testing concerns rather than preferences.
 * For every finding, provide an explanation of the evidence and why it matters, an actionable recommended improvement, and a justification of why the improvement is worthwhile.
@@ -59,9 +64,29 @@ Output:
 * Write the comparison to OUTPUT_REPORT.
 * Append a dated follow-up section to the baseline only if explicitly asked to update that report.
 * For each finding, include an ID, severity, status, evidence, explanation, recommended change, and justification.
-* Include project/revision metadata, scope, validation results, source references, accepted exceptions, limitations, and a concise summary.
+* Include project/revision metadata, the prompt's version and blob ID, scope, validation results, source references, accepted exceptions, limitations, and a concise summary.
+* If the project keeps a review index, add a row for this review: date, report, prompt version and blob ID, the report it compared against, the revision reviewed, and the outcome. Record in its findings table the review that raised each new finding and, for every finding compared, the review that verified its status.
 
 Do not modify application code as part of the review unless separately asked to implement an agreed finding.
 ----
 
-For reviews in this repository, useful project-specific context includes [the baseline report](code-review-baseline-2026-11-18.adoc) and [the decision log](decision-log.adoc).
+For reviews in this repository, set PROMPT_FILE to `docs/code-review/code-review-prompt.adoc` and BASELINE_REPORT to the latest report that link:README.adoc[the review index →] lists.
+Useful project-specific context includes that index, which also records the pull requests each finding led to, and link:../decision-log.adoc[the decision log →].
+
+[#history]
+== Prompt history
+
+[cols="1,1,2,4",options="header"]
+|===
+|Version |Date |Blob ID |What changed
+
+|1
+|2026-11-18
+|`2af47000dea53171aa8d00d1f1207c263ec95d35`
+|The first version, which produced the baseline report; on `main` since `2b214cd`.
+
+|2
+|2026-11-19
+|The blob ID of this file as committed: `git rev-parse HEAD:docs/code-review/code-review-prompt.adoc`.
+|The prompt declares its version; a report records the prompt's version and blob ID, and adds its row to the review index; the input names PROMPT_FILE; and the project-specific links are AsciiDoc links, not Markdown ones.
+|===
