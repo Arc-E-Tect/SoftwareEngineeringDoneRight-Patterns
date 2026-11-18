@@ -24,6 +24,7 @@ import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -48,6 +49,8 @@ class ContractProblemHandlerTest {
 
     private static final URI INVALID_REQUEST = URI.create("https://api.example.com/problems/invalid-request");
     private static final URI INTERNAL_SERVER_ERROR = URI.create("https://api.example.com/problems/internal-server-error");
+    private static final URI NOT_ACCEPTABLE = URI.create("https://api.example.com/problems/not-acceptable");
+    private static final URI UNSUPPORTED_MEDIA_TYPE = URI.create("https://api.example.com/problems/unsupported-media-type");
     private static final String VALIDATIONS = "/payments/v1/validations/name-iban-match";
 
     private final ContractProblemHandler handler = new ContractProblemHandler();
@@ -279,17 +282,34 @@ class ContractProblemHandlerTest {
                             CacheControl.noStore().getHeaderValue()),
                     List.of(problem(response).getType(), response.getHeaders().getCacheControl()));
         }
+    }
+
+    @Nested
+    @DisplayName("answers a media type the contract does not declare with the contract's media-type problem")
+    class MediaTypes {
 
         @Test
-        @DisplayName("but not stored: a Content-Type the contract does not accept, with a body")
+        @DisplayName("415 unsupported-media-type, not stored: a Content-Type the contract does not accept, with a body")
         void anUnsupportedContentType() {
             servletRequest.setContentType("text/plain");
             ResponseEntity<Object> response = handler.handleHttpMediaTypeNotSupported(
                     new HttpMediaTypeNotSupportedException(MediaType.TEXT_PLAIN, List.of(MediaType.APPLICATION_JSON), org.springframework.http.HttpMethod.POST),
                     new HttpHeaders(), HttpStatus.UNSUPPORTED_MEDIA_TYPE, request);
 
-            assertEquals(List.of(HttpStatusCode.valueOf(415), CacheControl.noStore().getHeaderValue()),
-                    List.of(response.getStatusCode(), response.getHeaders().getCacheControl()));
+            assertEquals(List.of(HttpStatusCode.valueOf(415), UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type", CacheControl.noStore().getHeaderValue()),
+                    List.of(response.getStatusCode(), problem(response).getType(), problem(response).getTitle(),
+                            response.getHeaders().getCacheControl()));
+        }
+
+        @Test
+        @DisplayName("406 not-acceptable, not stored: an Accept that admits nothing the contract answers with")
+        void anUnacceptableAccept() throws Exception {
+            ResponseEntity<Object> response = handler.handleException(
+                    new HttpMediaTypeNotAcceptableException(List.of(MediaType.APPLICATION_JSON, MediaType.APPLICATION_PROBLEM_JSON)), request);
+
+            assertEquals(List.of(HttpStatusCode.valueOf(406), NOT_ACCEPTABLE, "Not Acceptable", CacheControl.noStore().getHeaderValue()),
+                    List.of(response.getStatusCode(), problem(response).getType(), problem(response).getTitle(),
+                            response.getHeaders().getCacheControl()));
         }
     }
 

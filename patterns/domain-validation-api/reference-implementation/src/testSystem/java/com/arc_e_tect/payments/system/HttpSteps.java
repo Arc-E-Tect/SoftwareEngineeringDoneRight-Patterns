@@ -116,10 +116,33 @@ public class HttpSteps {
                 .build());
     }
 
+    @When("a client sends a valid request as {string}")
+    public void aClientSendsAValidRequestAs(String contentType) throws IOException, InterruptedException {
+        send(HttpRequest.newBuilder(uri(VALIDATIONS))
+                .header("Content-Type", contentType)
+                .header("Accept", "application/json, application/problem+json")
+                .POST(HttpRequest.BodyPublishers.ofString(body("Jan de Vries", "NL91ABNA0417164300")))
+                .build());
+    }
+
+    @When("a client sends a valid request, accepting only {string}")
+    public void aClientSendsAValidRequestAcceptingOnly(String accept) throws IOException, InterruptedException {
+        send(HttpRequest.newBuilder(uri(VALIDATIONS))
+                .header("Content-Type", "application/json")
+                .header("Accept", accept)
+                .POST(HttpRequest.BodyPublishers.ofString(body("Jan de Vries", "NL91ABNA0417164300")))
+                .build());
+    }
+
     @When("a client asks for the validation job {string}")
     public void aClientAsksForTheJob(String validationId) throws IOException, InterruptedException {
+        aClientAsksForTheJobAcceptingOnly(validationId, "application/json, application/problem+json");
+    }
+
+    @When("a client asks for the validation job {string}, accepting only {string}")
+    public void aClientAsksForTheJobAcceptingOnly(String validationId, String accept) throws IOException, InterruptedException {
         send(HttpRequest.newBuilder(uri(VALIDATIONS + "/" + validationId))
-                .header("Accept", "application/json, application/problem+json")
+                .header("Accept", accept)
                 .GET()
                 .build());
     }

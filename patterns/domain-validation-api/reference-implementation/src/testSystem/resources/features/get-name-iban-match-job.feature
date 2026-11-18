@@ -38,3 +38,9 @@ Feature: Get a name-iban-match validation job
     And the answer is a problem of type "https://api.example.com/problems/invalid-request"
     And the problem says what is wrong at "validationId"
     And the answer is not stored
+
+  Scenario: A client that accepts no media type the contract answers with
+    When a client asks for the validation job "8d4e2a10-5b7c-4e9f-a3d6-1c2b3a4d5e6f", accepting only "text/plain"
+    Then the answer is 406
+    And the answer is a problem of type "https://api.example.com/problems/not-acceptable"
+    And the answer is not stored
