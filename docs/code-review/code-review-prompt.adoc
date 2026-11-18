@@ -1,0 +1,67 @@
+= Reusable Cross-Project Code Review Prompt
+:toc: left
+:toclevels: 2
+
+Use this prompt to perform an evidence-based review of a software project and, when a prior report exists, compare the current state against it.
+Replace the values below when needed.
+`NONE` means that no baseline review exists yet.
+
+[source,text]
+----
+PROJECT_CONTEXT: <briefly describe the project, intended users, and any important constraints>
+REVIEW_SCOPE: <paths, components, or "whole repository">
+BASELINE_REPORT: <path to an earlier review report, or NONE>
+OUTPUT_REPORT: <path for the new baseline or follow-up report>
+REPORT_FORMAT: <AsciiDoc, Markdown, or the project's established format>
+----
+
+----
+Review the current code in this project against its documented intent, relevant contracts, and the baseline report if one is provided.
+
+Scope:
+
+* First identify the project languages, frameworks, build/test tools, repository guidance, intended use, and documented constraints.
+* Read the relevant root and component documentation, specifications, architecture/design records, and contributor instructions; prioritize materials that define expected behavior.
+* Review the production code, tests, build and dependency configuration, and automation within the requested scope.
+* Evaluate implementation/documentation consistency, observable behavior, contract correctness, architecture, code quality, test quality, language/framework practices, and use/configuration of applicable tooling.
+* Adapt the review to the project's stack and purpose; do not require tools, test layers, plugins, or documentation formats that do not apply.
+* Assess security in the context of the stated threat model and intended deployment.
+* Report meaningful unsafe behavior or violations of documented constraints.
+* Do not treat an explicitly documented limitation as a defect without explaining the relevant risk.
+
+Method:
+
+* Inspect the repository at the current revision and record the date, branch, commit or revision identifier when available, review scope, relevant tool versions, and commands actually run.
+* Verify claims with source evidence.
+* Report concrete behavior, risk, or material maintainability/testing concerns rather than preferences.
+* For every finding, provide an explanation of the evidence and why it matters, an actionable recommended improvement, and a justification of why the improvement is worthwhile.
+* Cite source locations using repository-relative paths and line numbers.
+* For material recommendations, cite current official documentation or standards from reputable organizations where relevant, giving the title, publisher, stable URL, and what the source supports.
+* Run focused tests, builds, linters, static checks, or other project-appropriate validation when practical.
+* Record exact validation outcomes and limitations.
+* Do not infer a passing check from an earlier report.
+* If a baseline report is provided, compare every finding by its stable ID.
+* Mark each finding Open, Improved, Resolved, or Not Reproduced and explain the current evidence.
+* Preserve the baseline snapshot and do not silently delete or renumber findings.
+* If no baseline report is provided, assign stable IDs to the findings so later reviews can compare against this report.
+* Add genuinely new findings with new stable IDs.
+* Do not duplicate an existing issue under another name.
+* Reassess accepted exceptions against current documentation and evidence.
+* Rank findings by severity and implementation priority, distinguishing correctness or contract risks from maintainability or educational-quality improvements.
+* Include an ordered remediation sequence and note prerequisites where relevant.
+* Use REPORT_FORMAT, or follow the project's established report convention if that is more appropriate.
+* Structure the report so later reviews can compare findings and validation results.
+
+Output:
+
+* Create the initial baseline at OUTPUT_REPORT when BASELINE_REPORT is NONE.
+* For a follow-up, read BASELINE_REPORT and preserve it unchanged.
+* Write the comparison to OUTPUT_REPORT.
+* Append a dated follow-up section to the baseline only if explicitly asked to update that report.
+* For each finding, include an ID, severity, status, evidence, explanation, recommended change, and justification.
+* Include project/revision metadata, scope, validation results, source references, accepted exceptions, limitations, and a concise summary.
+
+Do not modify application code as part of the review unless separately asked to implement an agreed finding.
+----
+
+For reviews in this repository, useful project-specific context includes [the baseline report](code-review-baseline-2026-11-18.adoc) and [the decision log](decision-log.adoc).
