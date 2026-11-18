@@ -362,6 +362,11 @@ In CI the workflow passes the `GH_READ_PACKAGE_TOKEN` secret (a classic token wi
 
 |2026-11-17
 |The projects in this repository use the same zero-major rule; each needs a `<project>-v0.0.0` seed tag before its first release, or semantic-release starts at `1.0.0`.
+
+|2026-11-18
+|Maven Central accepts the organisation's releases again, and the pack is released there as `0.0.2`, which supersedes the intent to release it as `1.0.0` on the move: it stays below `1.0.0`, as the zero-major rule offers no way up, until it is stable.
+The reference implementation resolves it from Maven Central like every other dependency, which supersedes the `exclusiveContent` GitHub Packages repository: the build needs no token, and the workflow no `GH_READ_PACKAGE_TOKEN`.
+`0.0.1` stays on GitHub Packages, unused, so that an older commit still resolves it.
 |===
 
 == Behaviour of the example

@@ -80,9 +80,6 @@ jobs:
 
       - name: Build Domain Validation API Reference Implementation
         working-directory: patterns/domain-validation-api/reference-implementation
-        env:
-          # Reads the Domain Validation API rule pack from GitHub Packages, which needs a token even for a public package.
-          GH_READ_PACKAGE_TOKEN: ${{ secrets.GH_READ_PACKAGE_TOKEN }}
         run: ./gradlew build
 
       - name: Upload build reports
