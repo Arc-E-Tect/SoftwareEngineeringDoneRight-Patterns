@@ -1,0 +1,33 @@
+title: Not Acceptable Problem
+description: >-
+  The request's `Accept` header admits none of the media types the operation answers with.
+  The response's `Accept` header lists the media types it does answer with.
+allOf:
+  - $ref: ./ProblemDetailsV1.yaml
+  - type: object
+    required:
+      - type
+      - title
+      - status
+      - detail
+    properties:
+      type:
+        type: string
+        const: https://api.example.com/problems/not-acceptable
+        examples:
+          - https://api.example.com/problems/not-acceptable
+      title:
+        type: string
+        const: Not Acceptable
+        examples:
+          - Not Acceptable
+      status:
+        type: integer
+        const: 406
+        examples:
+          - 406
+      detail:
+        type: string
+        minLength: 1
+        examples:
+          - 'Acceptable representations: [application/json, application/problem+json].'

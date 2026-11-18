@@ -269,6 +269,11 @@ Free-text `detail` members have `minLength: 1`.
 |`accountHolderName` has the pattern `^\s*\S.*$` (bundle 0.0.2): a name of only whitespace breaks the contract, as the domain refuses it.
 It is anchored so that it means the same as a JSON Schema search and as a Java `@Pattern` match.
 Java's `\s` is narrower than ECMAScript's, so a name of only, say, em spaces passes the generated validation; the command refuses it, and the controller answers the contract's `400`.
+
+|2026-11-18
+|Both operations declare `406 Not Acceptable`, and the validation `415 Unsupported Media Type` (bundle 0.1.0, an addition; code review finding API-001): the service answered them already, and a status the contract does not declare is one a client cannot be generated to handle.
+Each has a problem type of its own, `https://api.example.com/problems/not-acceptable` and `https://api.example.com/problems/unsupported-media-type`, as every other problem of the contract has, rather than `about:blank`.
+The TranscriberJ derives a contract case for each from the declared status alone, so no change to the TranscriberJ was needed.
 |===
 
 == OpenAPI Generator
@@ -462,6 +467,7 @@ The key and the event are sent as text, through a template derived from Spring B
 
 |2026-11-17
 |The webhook's subscribers are `validation.execution.events.webhook.subscribers`, none by default; each gets one `POST`, which may take `validation.execution.events.webhook.timeout`, 5 seconds by default; a subscriber that answers with an error or cannot be reached is logged and skipped.
+
 |===
 
 == Testing
@@ -538,4 +544,5 @@ A step waits at most 10 seconds for the webhook or the event about its scenario'
 
 |2026-11-18
 |Phase 6 edit: the controller's `ValidationExecution.run` call is given the use case's command and the function that reads a result's outcome, with a sentence on why each; the snippet otherwise stays illustrative.
+
 |===
