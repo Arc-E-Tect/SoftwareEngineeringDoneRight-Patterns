@@ -206,6 +206,8 @@ Each exception was approved by the maintainer and is recorded in the decision lo
 Their counterparts, `success-200-required` and `success-202-full`, run.
 They are enabled again once the TranscriberJ can express a response that a header selects.
 
+*Resolved on 2026-11-19*: the TranscriberJ 0.18.0 reads `x-transcriberj-selected-responses`, and the contract says that `Prefer: respond-async` selects `202`; no contract test is disabled any more, as the decision log records.
+
 |The `422` and `500` responses have no generated contract cases.
 |The TranscriberJ derives a case only for a response the contract alone can provoke, and reports these as not covered; the system features cover the `422`s, and the handler's unit tests the `500`.
 |===
