@@ -479,6 +479,15 @@ The pointers of bean validation need no escaping: they name members the contract
 |Whitespace in a name is Unicode's, an em space or a no-break space included, both where names are normalised and where a blank name is refused (code review finding DOMAIN-001).
 A name of only no-break spaces is therefore refused with the contract's `400`, as a name of only em spaces already was; `String.isBlank` and Java's default `\s` do not count no-break spaces as whitespace.
 Normalising folds nothing else: no NFKC, so full-width letters and ligatures stay as they are, and no transliteration, so `ß` is not `ss` and `Ø` is not `O`; that is a known simplification of the example.
+
+|2026-11-18
+|`SubmitValidationJobService` logs what fails unexpectedly, once, with SLF4J, as the starter's adapters do, with the job's identifier and never its request or result (code review finding OPS-001): a validation that throws at `ERROR`, as it fails its job; a publisher that throws at `WARN`, naming the publisher, as the job and the other publishers are not affected.
+A publisher still reports the failures it expects itself, a subscriber or a send that fails, and does not throw for them.
+Publication stays best effort and once, with no retry and no outbox; a lost notification is recovered by reading the job.
+
+|2026-11-18
+|Jobs run on the executor bean `validationJobExecutor`, one virtual thread per job, which the bounded context may replace by one of that name (code review finding LIFE-001).
+Spring closes it with the application context, so a stopping service refuses new jobs and waits for the running ones; a job's validation is bounded by its own timeouts, the wait for it is not.
 |===
 
 == Testing
@@ -533,6 +542,10 @@ A step waits at most 10 seconds for the webhook or the event about its scenario'
 
 |2026-11-18
 |Phase 6 verifies the work against every requirement of the brief, on a fresh clone with no build cache, and records the result in link:verification-report.adoc[`docs/verification-report.adoc` →], with the evidence and the approved exceptions.
+
+|2026-11-18
+|The starter's `testComponent` runs a job's life as one component with plain JUnit, from submission to the completion that is published: the submit and get use cases with the in-memory store, the executor holding jobs until the test runs them, and a publisher that records what it is told (code review finding TEST-001).
+Coverage and mutation testing remain measured on the unit tests alone.
 |===
 
 == Pattern document

@@ -10,6 +10,8 @@ import com.arc_e_tect.validation.async.application.port.inbound.command.SubmitVa
 import com.arc_e_tect.validation.async.application.port.inbound.result.SubmitValidationJobResult;
 import com.arc_e_tect.validation.async.application.port.outbound.ValidationCompletedPublisher;
 import com.arc_e_tect.validation.async.application.port.outbound.ValidationJobStore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.util.List;
@@ -25,8 +27,14 @@ import java.util.function.Supplier;
  *
  * <p>Once a job has run and is stored as it ended, its completion is published to every publisher,
  * so that whoever is told finds the job as it ended.
+ *
+ * <p>What fails unexpectedly is logged, once, with the job's identifier and never the request or the
+ * result: a validation that throws, which fails its job, and a publisher that throws, which the
+ * other publishers and the job are kept from.
  */
 public class SubmitValidationJobService implements SubmitValidationJobUseCase {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SubmitValidationJobService.class);
 
     private final ValidationJobStore store;
     private final Executor executor;
@@ -58,7 +66,7 @@ public class SubmitValidationJobService implements SubmitValidationJobUseCase {
     }
 
     private void run(ValidationJob job, Supplier<JobOutcome> work) {
-        JobOutcome ended = outcomeOf(work);
+        JobOutcome ended = outcomeOf(job, work);
         ValidationJob ran = switch (ended) {
             case JobOutcome.Completed completed -> job.completed(completed.result());
             case JobOutcome.Failed failed -> job.failed(new JobProblem(failed.type(), failed.title(), failed.status(), failed.detail()));
@@ -70,10 +78,11 @@ public class SubmitValidationJobService implements SubmitValidationJobUseCase {
         publish(ValidationCompleted.of(ran, outcome, clock.instant()));
     }
 
-    private JobOutcome outcomeOf(Supplier<JobOutcome> work) {
+    private JobOutcome outcomeOf(ValidationJob job, Supplier<JobOutcome> work) {
         try {
             return work.get();
         } catch (RuntimeException unexpected) {
+            LOG.error("The {} validation of job {} failed unexpectedly; the job has failed", job.validation(), job.validationId(), unexpected);
             return new JobOutcome.Failed(unexpectedFailure.type(), unexpectedFailure.title(), unexpectedFailure.status(),
                     unexpectedFailure.detail());
         }
@@ -84,8 +93,10 @@ public class SubmitValidationJobService implements SubmitValidationJobUseCase {
         for (ValidationCompletedPublisher publisher : publishers) {
             try {
                 publisher.publish(completed);
-            } catch (RuntimeException ignored) {
-                // A publisher reports its own failures; the completion is published best effort.
+            } catch (RuntimeException unexpected) {
+                // A publisher reports the failures it expects; this is one it did not, so it is logged here.
+                LOG.warn("Publisher {} failed to publish the completion of job {}", publisher.getClass().getName(),
+                        completed.validationId(), unexpected);
             }
         }
     }

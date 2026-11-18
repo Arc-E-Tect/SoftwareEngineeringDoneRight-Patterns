@@ -11,11 +11,18 @@ import com.arc_e_tect.validation.async.application.port.inbound.command.Validati
 import com.arc_e_tect.validation.async.application.port.inbound.result.SubmitValidationJobResult;
 import com.arc_e_tect.validation.async.application.port.inbound.result.ValidationJobView;
 import com.arc_e_tect.validation.async.application.port.outbound.ValidationCompletedPublisher;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.time.Clock;
@@ -211,6 +218,82 @@ class SubmitValidationJobServiceTest {
             queued.forEach(Runnable::run);
 
             assertEquals(1, published.size());
+        }
+    }
+
+    @Nested
+    @DisplayName("logs what fails unexpectedly, once, with the job and without the request")
+    class LogsWhatFailsUnexpectedly {
+
+        private static final String REQUEST = "{\"accountHolderName\": \"Jan de Vries\"}";
+
+        private final Logger logger = (Logger) LoggerFactory.getLogger(SubmitValidationJobService.class);
+        private final ListAppender<ILoggingEvent> logged = new ListAppender<>();
+
+        @BeforeEach
+        void listen() {
+            logged.start();
+            logger.addAppender(logged);
+        }
+
+        @AfterEach
+        void stopListening() {
+            logger.detachAppender(logged);
+        }
+
+        private String runWith(List<ValidationCompletedPublisher> publishers, Supplier<JobOutcome> work) {
+            SubmitValidationJobService submitting = new SubmitValidationJobService(store, queued::add, CLOCK, publishers, UNEXPECTED);
+            String validationId = accepted(submitting.submit(new SubmitValidationJobCommand("name-iban-match", KEY, REQUEST, OPERATION, work)))
+                    .validationId();
+            queued.forEach(Runnable::run);
+            return validationId;
+        }
+
+        private static List<Object> logEntry(Level level, String message, String exception) {
+            return List.of(level, message, exception);
+        }
+
+        private List<Object> theOnlyEntry() {
+            assertEquals(1, logged.list.size(), "log entries");
+            ILoggingEvent event = logged.list.getFirst();
+            return logEntry(event.getLevel(), event.getFormattedMessage(), event.getThrowableProxy().getClassName());
+        }
+
+        @Test
+        @DisplayName("an error for a validation that fails")
+        void aValidationThatFails() {
+            String validationId = runWith(List.of(), () -> {
+                throw new IllegalStateException("broken");
+            });
+
+            assertEquals(logEntry(Level.ERROR, "The name-iban-match validation of job " + validationId + " failed unexpectedly; the job has failed",
+                    IllegalStateException.class.getName()), theOnlyEntry());
+        }
+
+        @Test
+        @DisplayName("a warning for a publisher that fails, naming the publisher")
+        void aPublisherThatFails() {
+            ValidationCompletedPublisher broken = new BrokenPublisher();
+            String validationId = runWith(List.of(broken), () -> completed("result"));
+
+            assertEquals(logEntry(Level.WARN, "Publisher " + BrokenPublisher.class.getName() + " failed to publish the completion of job "
+                    + validationId, IllegalStateException.class.getName()), theOnlyEntry());
+        }
+
+        @Test
+        @DisplayName("nothing for a job that runs and is published")
+        void nothingWhenAllIsWell() {
+            runWith(List.of(published::add), () -> completed("result"));
+
+            assertEquals(List.of(), logged.list);
+        }
+
+        private static final class BrokenPublisher implements ValidationCompletedPublisher {
+
+            @Override
+            public void publish(ValidationCompleted completed) {
+                throw new IllegalStateException("The broker is unavailable");
+            }
         }
     }
 
