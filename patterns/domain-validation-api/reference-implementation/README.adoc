@@ -29,19 +29,8 @@ The implementation is being built test-first, one slice at a time: so far the ve
 
 == Build and test
 
-Requirements: Java 25, Node 24 with npm, a GitHub token that can read packages, and Docker for the contract and system tests.
+Requirements: Java 25, Node 24 with npm, and Docker for the contract and system tests.
 The Gradle wrapper downloads Gradle itself, and the build provisions the Java toolchain when it is missing.
-
-The Domain Validation API rule pack is published on GitHub Packages, which needs a token even for a public package.
-Add your GitHub user name and a classic token with the `read:packages` scope, and nothing else, to `~/.gradle/gradle.properties`, never to this repository:
-
-[source,properties]
-----
-gpr.user=<your GitHub user name>
-gpr.key=<the token>
-----
-
-In CI, the workflow passes the `GH_READ_PACKAGE_TOKEN` secret instead.
 
 The service implements the `domain-validation-api` contract, at the `apiContractVersion` in `gradle.properties`.
 The build publishes it from the specification library in link:../../../api/README.adoc[`api/` →] with the API-Only Publisher, which is why it needs Node, and the API-Only Subscriber fetches it and checks it against `apionly.lock`.
