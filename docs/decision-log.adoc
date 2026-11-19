@@ -57,6 +57,9 @@ A report stays as the review wrote it; the index links a finding to the pull req
 
 |2026-11-17
 |An OWASP dependency-check per project and the weekly NVD scan are added in Phase 5, once the projects have real dependencies; `SECURITY.md` is updated in the same change.
+
+|2026-11-19
+|Dependency updates arrive through the house dependency updater's `patterns` profile (SoftwareEngineeringDoneRight-Tools #92). It updates `api/` with npm, the Gradle projects' version catalogs with refreshVersions, each verified by a clean build, and the Gradle wrappers; workflow actions only when asked. It works in a `maintenance` worktree beside the repository, in `../worktrees-SoftwareEngineeringDoneRight-Patterns/`, and opens one `maintenance` → `main` pull request, the first being #24. Nothing the API-Only Publisher builds is committed, so a Publisher update that changes the built contract shows only in the reference implementation's verification build, when the generated code or the contract tests no longer agree with the implementation; such an update is made by hand. The verification build needs Node (the Publisher) and Docker (Testcontainers) on the machine running the updater.
 |===
 
 == Structure and build
